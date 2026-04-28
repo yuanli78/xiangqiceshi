@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>源力象棋 · 三十六计第三批+聊斋 · 可走位置提示</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #fef9f0; font-family: 'Noto Serif SC', 'KaiTi', serif;
+      display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden;
+    }
+    .header { flex-shrink: 0; padding: 8px 20px; width: 100%; text-align: center; border-bottom: 2px solid #ffe0b5; }
+    h2 { color: #b91c1c; display: inline; margin: 0 20px; }
+    .board-container { flex: 1; width: 100%; overflow: auto; padding: 10px 20px; background: #faf6f0; border-bottom: 2px solid #ffe0b5; }
+    canvas { display: block; margin: 0 auto; background: #fff9ef; border-radius: 12px; box-shadow: inset 0 0 0 2px #d4b89c, 0 4px 10px rgba(0,0,0,0.05); cursor: crosshair; image-rendering: crisp-edges; }
+    .control-bar { flex-shrink: 0; width: 100%; background: #fff3e0; border-top: 2px solid #ffe0b5; padding: 8px 20px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap; box-shadow: 0 -2px 10px rgba(0,0,0,0.03); }
+    .status-bar { background: rgba(30,30,30,0.85); color: #ffe0b5; padding: 6px 16px; border-radius: 20px; font-weight: bold; font-size: 14px; }
+    .counter { background: #1e1e1e; color: #a7f3d0; padding: 6px 14px; border-radius: 16px; font-weight: bold; font-size: 13px; }
+    .counter.black { color: #e0d6c8; } .counter.red { color: #f9e076; }
+    .btn { background: #b91c1c; color: #fff; border: none; padding: 8px 18px; border-radius: 20px; font-size: 14px; cursor: pointer; font-weight: bold; }
+    .btn:hover { background: #7f1d1d; } .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .log-window { background: #1e1e1e; color: #a7f3d0; border-radius: 10px; padding: 6px 12px; height: 90px; flex: 1; min-width: 250px; overflow-y: scroll; font-family: 'Segoe UI', monospace; font-size: 12px; line-height: 1.5; border: 1px solid #444; scroll-behavior: smooth; }
+    .log-window::-webkit-scrollbar { width: 8px; } .log-window::-webkit-scrollbar-track { background: #2a2a2a; border-radius: 4px; } .log-window::-webkit-scrollbar-thumb { background: #666; border-radius: 4px; } .log-window::-webkit-scrollbar-thumb:hover { background: #888; }
+    .log-entry { margin-bottom: 2px; } .log-entry.warn { color: #fbbf24; } .log-entry.error { color: #ef4444; }
+    .tooltip { position: fixed; pointer-events: none; background: rgba(20,20,20,0.92); color: #fff; padding: 8px 14px; border-radius: 12px; font-size: 13px; font-weight: bold; white-space: nowrap; z-index: 9999; display: none; box-shadow: 0 4px 14px rgba(0,0,0,0.5); border: 2px solid #ffe0b5; line-height: 1.7; }
+    .tooltip .coord { color: #ffd700; font-size: 15px; } .tooltip .piece-info { color: #a7f3d0; font-size: 13px; } .tooltip .rule { color: #ccc; font-size: 12px; font-weight: normal; }
+    .footer-copyright { flex-shrink: 0; padding: 4px 0; text-align: center; width: 100%; background: #fef9f0; }
+    .copyright-inner { background: #f0ece4; padding: 0.3rem 1.5rem; border-radius: 20px; display: inline-block; color: #5e5e5e; font-size: 0.8rem; border: 1px solid #ffe0b5; }
+    .nav-links { flex-shrink: 0; text-align: center; padding: 2px 0; background: #fef9f0; }
+    .nav-links a { color: #b91c1c; text-decoration: none; font-weight: 500; margin: 0 10px; font-size: 0.9rem; } .nav-links a:hover { text-decoration: underline; } .nav-links span { color: #d4b89c; }
+    @media (max-width: 800px) { .control-bar { flex-direction: column; align-items: stretch; } .log-window { height: 70px; } }
+  </style>
+</head>
+<body>
+<div class="header"><h2>📜 源力象棋 · 三十六计+聊斋全系 · 可走位置提示</h2></div>
+<div class="board-container" id="boardContainer">
+  <canvas id="chessCanvas" width="2400" height="1800"></canvas>
+</div>
+<div class="control-bar">
+  <div class="status-bar" id="statusBar">🔹 点击棋子查看可走位置</div>
+  <div class="counter black" id="blackCount">⚫ 黑方: 167</div>
+  <div class="counter red" id="redCount">🔴 红方: 167</div>
+  <button class="btn" id="autoPlayBtn">▶️ 开始自动对战</button>
+  <button class="btn" id="pauseBtn" disabled>⏸️ 暂停</button>
+  <button class="btn" id="resetBtn">⟳ 复位并居中</button>
+  <div class="log-window" id="logPanel"><div class="log-entry">📋 三十六计第三批+聊斋全系已加入 · 点击棋子显示合法移动位置</div></div>
+</div>
+<div class="footer-copyright"><div class="copyright-inner">源力公社 · 集体版权 · 设定持续更新中</div></div>
+<div class="nav-links">
+  <a href="chuhan-chess-she.html">← 返回楚汉象棋社</a> <span>·</span>
+  <a href="worldview.html">返回世界观目录</a> <span>·</span>
+  <a href="index.html">返回首页</a>
+</div>
+<div class="tooltip" id="tooltip">
+  <span class="coord" id="tooltipCoord"></span><br>
+  <span class="piece-info" id="tooltipPiece"></span><br>
+  <span class="rule" id="tooltipRule"></span>
+</div>
+
+<script>
+  (function() {
+    const canvas = document.getElementById('chessCanvas');
+    const ctx = canvas.getContext('2d');
+    const tooltip = document.getElementById('tooltip');
+    const tooltipCoord = document.getElementById('tooltipCoord');
+    const tooltipPiece = document.getElementById('tooltipPiece');
+    const tooltipRule = document.getElementById('tooltipRule');
+    const statusBar = document.getElementById('statusBar');
+    const logPanel = document.getElementById('logPanel');
+    const boardContainer = document.getElementById('boardContainer');
+    const blackCountEl = document.getElementById('blackCount');
+    const redCountEl = document.getElementById('redCount');
+
+    const ROW_MIN = -18, ROW_MAX = 32, COL_MIN = -36, COL_MAX = 38;
+    const ROWS = ROW_MAX - ROW_MIN + 1, COLS = COL_MAX - COL_MIN + 1;
+    const LINE_SPAN = 38, PADDING = 50;
+    canvas.width = (COLS - 1) * LINE_SPAN + PADDING * 2;
+    canvas.height = (ROWS - 1) * LINE_SPAN + PADDING * 2;
+
+    const RED = 'red', BLACK = 'black';
+    const RED_COLOR = '#b91c1c', BLACK_COLOR = '#3a2a1a';
+    const RIVER_ROW_START = 7, RIVER_ROW_END = 9;
+    const BLACK_SHORE = 7, RED_SHORE = 10;
+
+    function getX(c) { return PADDING + (c - COL_MIN) * LINE_SPAN; }
+    function getY(r) { return PADDING + (r - ROW_MIN) * LINE_SPAN; }
+
+    let board = [];
+    let tianJiangs = [];
+    let giants = [];
+    let stackedDancers = [];
+    let currentPlayer = RED;
+    let autoRunning = false, autoTimer = null;
+    let deadPoolBlack = [], deadPoolRed = [];
+    const REVIVABLE_TYPES = ['车','马','炮','驼','骡','麒','飞车','战车','飞马','战马','飞炮','战炮','抛石器','悬','翔','追','截','轰','虎'];
+    const medicalBlack = [{row:1,col:-18},{row:1,col:-16},{row:1,col:-14}];
+    const medicalRed = [{row:13,col:16},{row:13,col:18},{row:13,col:20}];
+
+    let selectedPiece = null;
+    let validMoves = [];
+
+    const pieceValues = {
+      '天将真': 1000, '天将卫': 800, '巨将': 600, '飞将': 400, '战将': 450,
+      '士': 200, '飞士': 250, '战士': 220, '士卒': 180,
+      '象': 250, '飞象': 300, '战象': 280, '国象': 200,
+      '马': 220, '飞马': 260, '战马': 240, '骡': 230, '麒': 280, '异型马': 270,
+      '车': 280, '飞车': 320, '战车': 310, '异型车': 300,
+      '炮': 260, '飞炮': 300, '战炮': 290, '抛石器': 270, '异型炮': 280,
+      '兵': 100, '重兵': 120, '丁': 110, '勇': 110, '步': 130, '步兵': 140, '斥': 150, '烈': 150,
+      '雷': 120, '军师': 300, '御': 280, '鹿': 260, '蝉': 250, '后': 350,
+      '驼': 250, '悬': 260, '翔': 270, '天兵': 400, '巫': 300,
+      '诏': 250, '政': 280, '官': 230, '追': 240, '截': 220, '交': 200, '涉': 200, '日': 150, '月': 150, '卫': 180,
+      '城': 350, '轰': 320, '舞': 300, '虎': 280, '妃': 250,
+      '美': 200, '借': 200, '调': 200, '牵': 250, '混': 250, '擒': 300, '笑': 280, '假': 220, '隔': 250, '趁': 250, '欲': 250, '声': 280,
+      '无': 250, '瞒': 250, '暗': 280, '关': 250, '指': 250, '上': 250, '树': 280, '空': 300, '苦': 250, '连': 300, '走': 280, '壳': 300,
+      '围': 250, '人': 280, '以': 250, '李': 250, '打': 280, '砖': 250, '柱': 280, '远': 280, '主': 250, '虢': 280, '釜': 300, '畈': 250,
+      '狐': 200, '鬼': 220, '蛇': 240, '画': 260, '促': 200,
+      '影将': 100, '影士': 100, '影象': 100, '影马': 100, '影车': 100, '影炮': 100, '影兵': 100,
+      '异型将': 0
+    };
+
+    const ruleMap = {
+      '天将真': '走:横竖一格；被将时特异\n吃:横竖一格吃',
+      '天将卫': '走:未现身横竖一格；现身后横竖任意格\n吃:同天将真',
+      '巨将': '走:横竖每次两格(整体2×2)\n吃:可同时吃1-3枚覆盖敌子',
+      '飞将': '走:横竖斜一格\n吃:同走法',
+      '战将': '走:横竖斜一格；可远距吃子\n吃:一格吃或远距直线/斜线吃',
+      '异型将': '未入场',
+      '士': '走:斜一格\n吃:斜一格',
+      '飞士': '走:斜任意格\n吃:斜任意格',
+      '战士': '走:横竖一格\n吃:同走法',
+      '士卒': '走:斜一格(仅前向)\n吃:同走法',
+      '影将': '走:横竖一格\n光环:将类可斜走',
+      '影士': '走:斜一格\n光环:士类可横竖',
+      '象': '走:田字+用字\n吃:同走法',
+      '飞象': '走:大小田\n吃:同走法',
+      '战象': '走:大小田\n吃:吃子受堵眼',
+      '国象': '走:斜任意格(不可过河)\n吃:同走法',
+      '影象': '走:横竖一格\n光环:象类无视堵眼',
+      '马': '走:日字(蹩腿)\n吃:同走法',
+      '飞马': '走:日字(无蹩腿)\n吃:同走法',
+      '战马': '走:日字或目字\n吃:同走法',
+      '骡': '走:目字(蹩腿)\n吃:同走法',
+      '异型马': '走:日字(蹩腿)',
+      '影马': '走:横竖一格\n光环:马类无视蹩腿',
+      '车': '走:横竖任意格\n吃:同走法',
+      '飞车': '走:横竖任意格，可越己子\n吃:横竖吃子',
+      '战车': '走:横竖任意格+斜一格\n吃:同走法',
+      '异型车': '走:横竖任意格',
+      '影车': '走:横竖一格\n光环:车类可越子行走',
+      '炮': '走:横竖任意格\n吃:隔一子直线吃子',
+      '飞炮': '走:横竖任意格+斜一至两格\n吃:直线隔子/斜线隔己子打吃',
+      '战炮': '走:横竖任意格\n吃:隔子吃，炮架为敌时可双杀',
+      '抛石器': '走:横竖任意格\n吃:斜线隔己子紧邻打吃',
+      '异型炮': '走:横竖任意格\n吃:隔子直线吃子',
+      '影炮': '走:横竖一格\n光环:炮类可斜向隔子打吃',
+      '兵': '走:前进一格/过河可横移\n吃:同走法',
+      '重兵': '走:前进一格+隔子跳\n吃:同走法',
+      '丁': '走:可横移+过河斜前\n吃:同走法',
+      '勇': '走:可横移+过河斜前\n吃:同走法',
+      '步': '走:斜前一格\n吃:同走法',
+      '步兵': '走:前进一至两格\n吃:同兵',
+      '斥': '走:斜两格(不可过河)\n吃:同走法',
+      '影兵': '走:横竖一格\n光环:兵卒类不受河界限制',
+      '烈': '走:横竖一格\n技能:可在医疗处献祭复活己方主力',
+      '雷': '走:横竖任意格(不可过河)\n吃:不能吃子',
+      '军师': '走:同炮吃法走法(不可过河)\n吃:不能吃子',
+      '御': '走:横竖斜任意格(不可过河)\n吃:仅可左右或后方一格吃子',
+      '鹿': '走:目字(无蹩腿)\n吃:同走法；双鹿紧邻须联动',
+      '蝉': '走:横竖任意格(仅空走)\n吃:斜一格吃子',
+      '后': '走:横竖斜任意格\n吃:同走法',
+      '驼': '走:斜两格(无蹩腿)\n吃:同走法',
+      '悬': '走:用字对角\n吃:同走法',
+      '翔': '走:隔子飞行\n吃:同车吃子',
+      '天兵': '走:横竖斜一格\n吃:叠压后按被压棋子规则吃子',
+      '巫': '走:模仿对方上一手棋的走法\n吃:同模仿走法',
+      '诏': '走:同车(不可过河)\n技能:召回己方过河棋子',
+      '政': '走:隔子跳行(可连跳)\n吃:不能吃子',
+      '官': '走:斜一至两格\n限制:对方将离宫才可入场',
+      '追': '走:半场内同车\n吃:仅正面吃子',
+      '截': '走:同追\n吃:不能吃子',
+      '交': '走:横移或后退一格\n效果:存在时封锁河界',
+      '涉': '走:横移或后退一格\n效果:存在时封锁河界',
+      '日': '走:河岸横移+进退一格\n吃:不能吃子',
+      '月': '走:河岸横移+进退一格\n吃:不能吃子',
+      '卫': '走:河岸横移一格\n吃:不能吃子',
+      '城': '走:横竖斜一格\n吃:不能吃子；不能被吃(仅兑)',
+      '轰': '走:同炮\n吃:隔两子炸吃/条件轰炸/向前一步吃',
+      '舞': '走:横竖斜一格/隔子跳\n吃:不能吃子(跳将帅胜)',
+      '虎': '走:同炮\n吃:隔子吃；吃虎可复活己方一马',
+      '妃': '走:日字(无蹩腿)\n吃:同走法；将帅在底线时激活',
+      '美': '走:横竖一格\n过河后敌将只能左右移',
+      '借': '走:横竖任意格\n己方车马炮兵可飞吃借',
+      '调': '走:横竖任意格\n牺牲自己与敌子调位',
+      '牵': '走:斜走(本界不限)\n牵制相邻敌子',
+      '混': '走:同牵\n混扰敌子使其不能吃子',
+      '擒': '走:同车\n只能吃将帅',
+      '笑': '走:斜一格\n吃一子灭该兵种全部',
+      '假': '走:横竖一格\n只能吃己子并备用',
+      '隔': '走:同车(不可过河)\n纵向飞杀',
+      '趁': '走:同炮(不可过河)\n纵向隔子飞杀',
+      '欲': '走:同炮\n走棋后不能与敌子紧邻',
+      '声': '走:同车\n隔一子反跳吃逆方向敌子',
+      '无': '走:横竖斜一格\n空十字部署己方棋子',
+      '瞒': '走:斜一至两格(不可越子)\n吃:同走法',
+      '暗': '走:同炮\n吃:折线打吃(直角转弯炮)',
+      '关': '走:横竖一格(不可过河)\n吃:仅身后吃；存在时敌过河不能退回',
+      '指': '走:同车\n限制:只能选吃(恰好两敌子可吃时)',
+      '上': '走:横竖一格(不可过河)\n吃:仅身后吃；存在时敌入不能离开',
+      '树': '走:类似车\n纵必须跨河界，横必须跨中线',
+      '空': '走:同炮\n士象全无且仅剩将时可全灭界内敌子',
+      '苦': '走:同车\n被将时可吃己子解将',
+      '连': '走:横竖斜一格/隔子跳\n跳回原位吃所跳全部敌子',
+      '走': '走:横竖斜一格\n士象不全时可载将出宫',
+      '壳': '走:横竖士线一格/隔子跳\n存在时将帅可走士线/跳跃',
+      '围': '走:横竖一格\n走位使敌子无空位则围吃',
+      '人': '走:同车\n吃什么棋按什么棋规则走吃',
+      '以': '走:横竖一格\n借敌过河车马炮升级',
+      '李': '走:日字(无蹩腿)\n保护同“日”对角己方马',
+      '打': '走:同车\n等边直角折吃',
+      '砖': '走:同炮\n送吃时对方必须吃',
+      '柱': '走:同炮\n可联动车马炮同步移动',
+      '远': '走:同车\n吃子需跨规则选同兵种另一枚',
+      '主': '走:横竖任意格\n被吃后可操控敌一子走一步',
+      '虢': '走:同炮\n吃子时连炮架一同吃掉',
+      '釜': '走:横竖任意格\n可冻结区域敌子',
+      '畈': '走:横竖一格\n过河后敌子不能过河/前进',
+      '狐': '走:斜一格(不可过河)\n迷惑敌子使其只能斜走',
+      '鬼': '走:横竖一格/隔子跳\n过河后敌兵马不能前进',
+      '蛇': '走:斜一至两格\n士象无敌，吃蛇可灭士象',
+      '画': '走:不能主动移动\n敌方吃子时可点将',
+      '促': '走:兵被吃时激活，走法同过河兵'
+    };
+
+    function log(msg, type='info') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logPanel.appendChild(entry);
+      logPanel.scrollTop = logPanel.scrollHeight;
+    }
+
+    function countPieces() {
+      let black = 0, red = 0;
+      for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
+        const p = board[r][c];
+        if(p && p.name !== '巨将') {
+          if(p.color === BLACK) black++;
+          else red++;
+        }
+      }
+      tianJiangs.forEach(t => { if(t.color === BLACK) black++; else red++; });
+      giants.forEach(g => { if(g.color === BLACK) black++; else red++; });
+      stackedDancers.forEach(d => { if(d.color === BLACK) black++; else red++; });
+      blackCountEl.textContent = `⚫ 黑方: ${black}`;
+      redCountEl.textContent = `🔴 红方: ${red}`;
+      return { black, red };
+    }
+
+    function initPieces() {
+      board = Array(ROWS).fill().map(() => Array(COLS).fill(null));
+      tianJiangs = []; giants = []; stackedDancers = [];
+      deadPoolBlack = []; deadPoolRed = [];
+
+      function setCell(row, col, name, color) {
+        if(row<ROW_MIN||row>ROW_MAX||col<COL_MIN||col>COL_MAX) return;
+        const r = row-ROW_MIN, c = col-COL_MIN;
+        if(board[r][c]) console.warn(`覆盖 (${row},${col})`);
+        board[r][c] = {name, color};
+      }
+
+      giants.push({color: BLACK, topLeftRow: 6, topLeftCol: -5});
+      giants.push({color: RED, topLeftRow: 10, topLeftCol: 7});
+
+      function addTianJiang(type, color, leftCol, row) {
+        tianJiangs.push({type, color, leftCol, rightCol: leftCol+1, row});
+      }
+
+      addTianJiang('真', BLACK, 4, 2);
+      addTianJiang('卫', BLACK, 7, 2);
+      addTianJiang('真', RED, -3, 15);
+      addTianJiang('卫', RED, -6, 15);
+
+      setCell(2,1,'飞将',BLACK); setCell(2,10,'战将',BLACK);
+      setCell(0,-25,'异型将',BLACK);
+      setCell(15,1,'飞将',RED); setCell(15,-8,'战将',RED);
+      setCell(17,27,'异型将',RED);
+
+      setCell(2,0,'士',BLACK); setCell(2,3,'士',BLACK);
+      setCell(2,6,'士',BLACK); setCell(2,11,'士',BLACK);
+      setCell(1,3,'飞士',BLACK); setCell(1,8,'战士',BLACK);
+      setCell(4,-10,'士卒',BLACK); setCell(4,12,'士卒',BLACK);
+      setCell(15,2,'士',RED); setCell(15,-1,'士',RED);
+      setCell(15,-4,'士',RED); setCell(15,-9,'士',RED);
+      setCell(16,1,'飞士',RED); setCell(16,-6,'战士',RED);
+      setCell(13,12,'士卒',RED); setCell(13,-10,'士卒',RED);
+
+      setCell(4,5,'影将',BLACK); setCell(4,-4,'影士',BLACK);
+      setCell(13,-3,'影将',RED); setCell(13,6,'影士',RED);
+
+      setCell(2,-2,'象',BLACK); setCell(2,9,'象',BLACK);
+      setCell(1,-5,'飞象',BLACK); setCell(1,13,'飞象',BLACK);
+      setCell(1,-7,'战象',BLACK); setCell(1,15,'战象',BLACK);
+      setCell(3,-8,'国象',BLACK); setCell(3,10,'国象',BLACK);
+      setCell(4,-7,'影象',BLACK);
+      setCell(15,4,'象',RED); setCell(15,-7,'象',RED);
+      setCell(16,7,'飞象',RED); setCell(16,-11,'飞象',RED);
+      setCell(16,9,'战象',RED); setCell(16,-13,'战象',RED);
+      setCell(14,10,'国象',RED); setCell(14,-8,'国象',RED);
+      setCell(13,9,'影象',RED);
+
+      setCell(2,-6,'马',BLACK); setCell(2,12,'马',BLACK);
+      setCell(1,-6,'飞马',BLACK); setCell(1,12,'飞马',BLACK);
+      setCell(1,-9,'战马',BLACK); setCell(1,14,'战马',BLACK);
+      setCell(2,-4,'骡',BLACK); setCell(4,6,'影马',BLACK);
+      setCell(0,-18,'异型马',BLACK);
+      setCell(15,8,'马',RED); setCell(15,-10,'马',RED);
+      setCell(16,8,'飞马',RED); setCell(16,-10,'飞马',RED);
+      setCell(16,11,'战马',RED); setCell(16,-12,'战马',RED);
+      setCell(15,6,'骡',RED); setCell(13,-4,'影马',RED);
+      setCell(17,20,'异型马',RED);
+
+      setCell(2,-5,'车',BLACK); setCell(2,13,'车',BLACK);
+      setCell(1,-11,'飞车',BLACK); setCell(1,16,'飞车',BLACK);
+      setCell(1,-10,'战车',BLACK); setCell(1,17,'战车',BLACK);
+      setCell(0,-17,'异型车',BLACK);
+      setCell(4,8,'影车',BLACK);
+      setCell(15,7,'车',RED); setCell(15,-11,'车',RED);
+      setCell(16,13,'飞车',RED); setCell(16,-14,'飞车',RED);
+      setCell(16,12,'战车',RED); setCell(16,-15,'战车',RED);
+      setCell(17,19,'异型车',RED);
+      setCell(13,-6,'影车',RED);
+
+      setCell(2,-7,'炮',BLACK); setCell(2,14,'炮',BLACK);
+      stackedDancers.push({row:2, col:-7, color:BLACK});
+      stackedDancers.push({row:2, col:14, color:BLACK});
+
+      setCell(1,-12,'飞炮',BLACK); setCell(1,18,'飞炮',BLACK);
+      setCell(1,-13,'战炮',BLACK); setCell(1,19,'战炮',BLACK);
+      setCell(1,-14,'抛石器',BLACK); setCell(1,20,'抛石器',BLACK);
+      setCell(0,-19,'异型炮',BLACK);
+      setCell(4,-9,'影炮',BLACK);
+      setCell(15,9,'炮',RED); setCell(15,-12,'炮',RED);
+      stackedDancers.push({row:15, col:9, color:RED});
+      stackedDancers.push({row:15, col:-12, color:RED});
+
+      setCell(16,14,'飞炮',RED); setCell(16,-16,'飞炮',RED);
+      setCell(16,15,'战炮',RED); setCell(16,-17,'战炮',RED);
+      setCell(16,16,'抛石器',RED); setCell(16,-18,'抛石器',RED);
+      setCell(17,21,'异型炮',RED);
+      setCell(13,11,'影炮',RED);
+
+      setCell(5,-3,'兵',BLACK); setCell(5,-1,'兵',BLACK);
+      setCell(5,1,'兵',BLACK); setCell(5,3,'兵',BLACK);
+      setCell(5,5,'兵',BLACK); setCell(5,7,'兵',BLACK);
+      setCell(5,-2,'丁',BLACK); setCell(5,8,'丁',BLACK);
+      setCell(5,-4,'步兵',BLACK); setCell(5,9,'步兵',BLACK);
+      setCell(5,-6,'烈',BLACK);
+      setCell(4,-2,'重兵',BLACK); setCell(4,0,'重兵',BLACK);
+      setCell(4,2,'重兵',BLACK); setCell(4,4,'重兵',BLACK);
+      setCell(4,9,'重兵',BLACK);
+      setCell(4,3,'步',BLACK);
+      setCell(3,-4,'斥',BLACK); setCell(3,11,'斥',BLACK);
+      setCell(4,10,'影兵',BLACK);
+
+      setCell(3,-3,'雷',BLACK); setCell(3,1,'雷',BLACK);
+      setCell(3,4,'雷',BLACK); setCell(3,8,'雷',BLACK);
+      setCell(2,2,'军师',BLACK); setCell(3,5,'御',BLACK);
+      setCell(2,-8,'鹿',BLACK); setCell(2,15,'鹿',BLACK);
+      setCell(3,7,'蝉',BLACK);
+      setCell(1,-15,'后',BLACK); setCell(1,21,'后',BLACK);
+
+      setCell(-10,-16,'驼',BLACK); setCell(-10,24,'驼',BLACK);
+      setCell(3,-2,'驼',BLACK); setCell(3,9,'驼',BLACK);
+      setCell(1,-17,'悬',BLACK); setCell(1,23,'悬',BLACK);
+      setCell(1,-19,'翔',BLACK); setCell(1,25,'翔',BLACK);
+      setCell(0,-21,'天兵',BLACK);
+      setCell(3,0,'巫',BLACK);
+
+      setCell(3,2,'诏',BLACK);
+      setCell(1,-2,'政',BLACK); setCell(1,9,'政',BLACK);
+      setCell(-11,-16,'官',BLACK); setCell(-11,24,'官',BLACK);
+      setCell(-10,-20,'追',BLACK); setCell(-10,-19,'截',BLACK);
+
+      setCell(BLACK_SHORE, 1, '交', BLACK);
+      setCell(BLACK_SHORE, -3, '日', BLACK);
+      setCell(BLACK_SHORE, 6, '月', BLACK);
+      setCell(BLACK_SHORE, 0, '卫', BLACK);
+
+      setCell(2,-9,'城',BLACK); setCell(2,16,'城',BLACK);
+      setCell(2,-10,'轰',BLACK); setCell(2,17,'轰',BLACK);
+      setCell(3,-1,'虎',BLACK);
+      setCell(1,-4,'妃',BLACK); setCell(1,10,'妃',BLACK);
+
+      // 第一批三十六计
+      let col = -30;
+      setCell(-10, col++, '美', BLACK); setCell(-10, col++, '借', BLACK); setCell(-10, col++, '调', BLACK); setCell(-10, col++, '牵', BLACK); setCell(-10, col++, '混', BLACK);
+      col = -28; setCell(-9, col++, '擒', BLACK); setCell(-9, col++, '笑', BLACK); setCell(-9, col++, '假', BLACK); setCell(-9, col++, '隔', BLACK); setCell(-9, col++, '趁', BLACK);
+      col = -28; setCell(-8, col++, '欲', BLACK); setCell(-8, col++, '声', BLACK);
+
+      // 第二批三十六计
+      col = -26; setCell(-8, col++, '无', BLACK); setCell(-8, col++, '瞒', BLACK); setCell(-8, col++, '暗', BLACK);
+      col = -25; setCell(-7, col++, '关', BLACK); setCell(-7, col++, '指', BLACK); setCell(-7, col++, '上', BLACK); setCell(-7, col++, '树', BLACK); setCell(-7, col++, '空', BLACK);
+      col = -25; setCell(-6, col++, '苦', BLACK); setCell(-6, col++, '连', BLACK); setCell(-6, col++, '走', BLACK); setCell(-6, col++, '壳', BLACK);
+
+      // 第三批三十六计
+      col = -21; setCell(-6, col++, '围', BLACK); setCell(-6, col++, '人', BLACK); setCell(-6, col++, '以', BLACK); setCell(-6, col++, '李', BLACK); setCell(-6, col++, '打', BLACK); setCell(-6, col++, '砖', BLACK);
+      col = -25; setCell(-5, col++, '柱', BLACK); setCell(-5, col++, '远', BLACK); setCell(-5, col++, '主', BLACK); setCell(-5, col++, '虢', BLACK); setCell(-5, col++, '釜', BLACK); setCell(-5, col++, '畈', BLACK);
+
+      // 聊斋系列
+      for (let r = -6; r <= -2; r++) {
+        const name = r === -6 ? '狐' : r === -5 ? '鬼' : r === -4 ? '蛇' : r === -3 ? '画' : '促';
+        for (let c = -10; c <= -7; c++) setCell(r, c, name, BLACK);
+      }
+
+      // 红方镜像
+      // 第一批
+      col = 32; setCell(27, col--, '美', RED); setCell(27, col--, '借', RED); setCell(27, col--, '调', RED); setCell(27, col--, '牵', RED); setCell(27, col--, '混', RED);
+      col = 30; setCell(26, col--, '擒', RED); setCell(26, col--, '笑', RED); setCell(26, col--, '假', RED); setCell(26, col--, '隔', RED); setCell(26, col--, '趁', RED);
+      col = 30; setCell(25, col--, '欲', RED); setCell(25, col--, '声', RED);
+      // 第二批
+      col = 28; setCell(25, col--, '无', RED); setCell(25, col--, '瞒', RED); setCell(25, col--, '暗', RED);
+      col = 27; setCell(24, col--, '关', RED); setCell(24, col--, '指', RED); setCell(24, col--, '上', RED); setCell(24, col--, '树', RED); setCell(24, col--, '空', RED);
+      col = 27; setCell(23, col--, '苦', RED); setCell(23, col--, '连', RED); setCell(23, col--, '走', RED); setCell(23, col--, '壳', RED);
+      // 第三批
+      col = 23; setCell(23, col--, '围', RED); setCell(23, col--, '人', RED); setCell(23, col--, '以', RED); setCell(23, col--, '李', RED); setCell(23, col--, '打', RED); setCell(23, col--, '砖', RED);
+      col = 27; setCell(22, col--, '柱', RED); setCell(22, col--, '远', RED); setCell(22, col--, '主', RED); setCell(22, col--, '虢', RED); setCell(22, col--, '釜', RED); setCell(22, col--, '畈', RED);
+      // 聊斋
+      for (let r = 23; r >= 19; r--) {
+        const name = r === 23 ? '狐' : r === 22 ? '鬼' : r === 21 ? '蛇' : r === 20 ? '画' : '促';
+        for (let c = 9; c <= 12; c++) setCell(r, c, name, RED);
+      }
+
+      // 红方其他棋子
+      setCell(12,5,'兵',RED); setCell(12,3,'兵',RED); setCell(12,1,'兵',RED); setCell(12,-1,'兵',RED); setCell(12,-3,'兵',RED); setCell(12,-5,'兵',RED);
+      setCell(12,4,'丁',RED); setCell(12,-6,'丁',RED); setCell(12,6,'步兵',RED); setCell(12,-7,'步兵',RED); setCell(12,8,'烈',RED);
+      setCell(13,4,'重兵',RED); setCell(13,2,'重兵',RED); setCell(13,0,'重兵',RED); setCell(13,-2,'重兵',RED); setCell(13,-7,'重兵',RED);
+      setCell(13,-1,'步',RED); setCell(14,6,'斥',RED); setCell(14,-9,'斥',RED); setCell(13,-8,'影兵',RED);
+      setCell(14,5,'雷',RED); setCell(14,1,'雷',RED); setCell(14,-2,'雷',RED); setCell(14,-6,'雷',RED);
+      setCell(15,0,'军师',RED); setCell(14,-3,'御',RED); setCell(15,10,'鹿',RED); setCell(15,-13,'鹿',RED); setCell(14,-5,'蝉',RED);
+      setCell(16,17,'后',RED); setCell(16,-19,'后',RED);
+      setCell(24,18,'驼',RED); setCell(24,-22,'驼',RED); setCell(14,4,'驼',RED); setCell(14,-7,'驼',RED);
+      setCell(16,19,'悬',RED); setCell(16,-21,'悬',RED); setCell(16,21,'翔',RED); setCell(16,-23,'翔',RED);
+      setCell(17,23,'天兵',RED); setCell(14,2,'巫',RED);
+      setCell(14,0,'诏',RED); setCell(16,4,'政',RED); setCell(16,-7,'政',RED);
+      setCell(25,18,'官',RED); setCell(25,-22,'官',RED); setCell(24,22,'追',RED); setCell(24,21,'截',RED);
+      setCell(RED_SHORE, 1, '涉', RED); setCell(RED_SHORE, -3, '日', RED); setCell(RED_SHORE, 6, '月', RED); setCell(RED_SHORE, 0, '卫', RED);
+      setCell(15,11,'城',RED); setCell(15,-14,'城',RED); setCell(15,12,'轰',RED); setCell(15,-15,'轰',RED);
+      setCell(14,3,'虎',RED); setCell(16,6,'妃',RED); setCell(16,-8,'妃',RED);
+    }
+
+    function isOwnHalf(row, color) {
+      return color === BLACK ? row <= RIVER_ROW_START-1 : row >= RIVER_ROW_END+1;
+    }
+    function isInRiver(row) { return row >= RIVER_ROW_START && row <= RIVER_ROW_END; }
+
+    function checkWinner() {
+      const { black, red } = countPieces();
+      if(black === 0) return RED;
+      if(red === 0) return BLACK;
+      return null;
+    }
+
+    function generateMoves(color) {
+      const moves = [];
+      const enemy = color===RED?BLACK:RED;
+      const deadPool = color===BLACK ? deadPoolBlack : deadPoolRed;
+      const medical = color===BLACK ? medicalBlack : medicalRed;
+      const shore = color===BLACK ? BLACK_SHORE : RED_SHORE;
+
+      stackedDancers.filter(d=>d.color===color).forEach(d=>{
+        const row = d.row, col = d.col;
+        for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) {
+          if(dr===0 && dc===0) continue;
+          const nr=row+dr, nc=col+dc;
+          if(nr<ROW_MIN||nr>ROW_MAX||nc<COL_MIN||nc>COL_MAX) continue;
+          if(isInRiver(nr)) continue;
+          moves.push({type:'stackedDancer', dancer:d, toRow:nr, toCol:nc, isEat:false, pieceName:'舞'});
+        }
+      });
+
+      tianJiangs.filter(t=>t.color===color).forEach(t=>{
+        for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) {
+          if(dr===0 && dc===0) continue;
+          const nr=t.row+dr, nl=t.leftCol+dc, nr2=t.rightCol+dc;
+          if(nr<ROW_MIN||nr>ROW_MAX||nl<COL_MIN||nr2>COL_MAX || isInRiver(nr)) continue;
+          const conflict = tianJiangs.some(o=>o.color===color && o!==t && o.row===nr && (o.leftCol===nl || o.rightCol===nl || o.leftCol===nr2 || o.rightCol===nr2));
+          if(conflict) continue;
+          const target1 = board[nr-ROW_MIN]?.[nl-COL_MIN];
+          const target2 = board[nr-ROW_MIN]?.[nr2-COL_MIN];
+          const canEat = (target1 && target1.color===enemy) || (target2 && target2.color===enemy);
+          moves.push({type:'tianjiang', tj:t, toRow:nr, toLeftCol:nl, isEat:!!canEat, pieceName:'天将'+t.type});
+        }
+      });
+
+      giants.filter(g=>g.color===color).forEach(g=>{
+        for(let dr=-2; dr<=2; dr+=2) for(let dc=-2; dc<=2; dc+=2) {
+          if(dr===0 && dc===0) continue;
+          const nr=g.topLeftRow+dr, nc=g.topLeftCol+dc;
+          if(nr<ROW_MIN||nr+1>ROW_MAX||nc<COL_MIN||nc+1>COL_MAX) continue;
+          moves.push({type:'giant', giant:g, toRow:nr, toCol:nc, isEat:false, pieceName:'巨将'});
+        }
+      });
+
+      for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
+        const piece=board[r][c];
+        if(!piece || piece.color!==color || piece.name==='巨将') continue;
+        if(piece.name==='炮' && stackedDancers.some(d=>d.row===ROW_MIN+r && d.col===COL_MIN+c && d.color===color)) continue;
+        const row=ROW_MIN+r, col=COL_MIN+c;
+        if(piece.name==='国象' && !isOwnHalf(row, color)) continue;
+
+        let offsets = [];
+        if(['象','飞象','战象'].includes(piece.name)) offsets = [[-2,-2],[-2,2],[2,-2],[2,2],[-1,-1],[-1,1],[1,-1],[1,1]];
+        else if(['士','飞士','战士','士卒','影士'].includes(piece.name)) offsets = [[-1,-1],[-1,1],[1,-1],[1,1]];
+        else if(['马','飞马','战马','骡','异型马'].includes(piece.name)) offsets = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+        else if(['车','飞车','战车','异型车','诏','借','调','擒','隔','声','指','苦','围','人','以','打','柱','远','主','釜'].includes(piece.name)) {
+          for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
+        } else if(['炮','飞炮','战炮','抛石器','异型炮','欲','趁','虎','暗','空','砖','虢'].includes(piece.name)) {
+          for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
+        } else if(['兵','重兵','丁','勇','步','步兵','烈','美','假','妃','关','上','畈','蛇'].includes(piece.name)) {
+          offsets = [[-1,0],[1,0],[0,-1],[0,1]];
+        } else if(['无','走','壳','连','李','鬼'].includes(piece.name)) {
+          offsets = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+        } else if(piece.name === '雷') {
+          for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
+        } else if(piece.name === '军师') {
+          for(let step=1; step<=8; step++) {
+            for(let [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+              const nr=row+dr*step, nc=col+dc*step;
+              if(nr<ROW_MIN||nr>ROW_MAX||nc<COL_MIN||nc>COL_MAX) continue;
+              const target=board[nr-ROW_MIN]?.[nc-COL_MIN];
+              if(target) { const jumpRow=nr+dr, jumpCol=nc+dc; if(jumpRow>=ROW_MIN&&jumpRow<=ROW_MAX&&jumpCol>=COL_MIN&&jumpCol<=COL_MAX && !board[jumpRow-ROW_MIN]?.[jumpCol-COL_MIN]) offsets.push([jumpRow-row, jumpCol-col]); break; }
+              if(board[nr-ROW_MIN]?.[nc-COL_MIN]) break;
+            }
+          }
+        } else if(piece.name === '御') {
+          for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
+          for(let step=1; step<=8; step++) offsets.push([-step,-step],[-step,step],[step,-step],[step,step]);
+        } else if(piece.name === '鹿') offsets = [[-2,-2],[-2,2],[2,-2],[2,2]];
+        else if(piece.name === '蝉') for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
+        else if(piece.name === '后') {
+          for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
+          for(let step=1; step<=8; step++) offsets.push([-step,-step],[-step,step],[step,-step],[step,step]);
+        } else if(piece.name === '驼' || piece.name === '悬') offsets = [[-2,-2],[-2,2],[2,-2],[2,2]];
+        else if(piece.name === '翔') for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
+        else if(piece.name === '天兵') offsets = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+        else if(piece.name === '巫' || piece.name === '政' || piece.name === '烈') offsets = [[-1,0],[1,0],[0,-1],[0,1]];
+        else if(piece.name === '官') offsets = [[-1,-1],[-1,1],[1,-1],[1,1],[-2,-2],[-2,2],[2,-2],[2,2]];
+        else if(piece.name === '追' || piece.name === '截') for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
+        else if(piece.name === '交' || piece.name === '涉') { const fwd=color===BLACK?1:-1; offsets.push([0,-1],[0,1],[-fwd,0]); }
+        else if(piece.name === '日' || piece.name === '月' || piece.name === '卫') { offsets.push([0,-1],[0,1]); if(piece.name!=='卫') offsets.push([-1,0],[1,0]); }
+        else if(piece.name === '城') offsets = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+        else if(piece.name === '舞') offsets = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+        else if(piece.name === '牵' || piece.name === '混') offsets = [[-1,-1],[-1,1],[1,-1],[1,1]];
+        else if(piece.name === '笑' || piece.name === '瞒') offsets = [[-1,-1],[-1,1],[1,-1],[1,1],[-2,-2],[-2,2],[2,-2],[2,2]];
+        else if(piece.name === '树') { for(let step=1; step<=8; step++) { if(row+step!==row) offsets.push([step,0],[-step,0]); if(col+step!==col) offsets.push([0,step],[0,-step]); } }
+        else if(piece.name === '狐') offsets = [[-1,-1],[-1,1],[1,-1],[1,1]];
+        else if(piece.name === '画' || piece.name === '促') continue; // 画不能主动移动，促初始不能移动
+        else offsets = [[-1,0],[1,0],[0,-1],[0,1]];
+
+        for(let [dr,dc] of offsets) {
+          const nr=row+dr, nc=col+dc;
+          if(nr<ROW_MIN||nr>ROW_MAX||nc<COL_MIN||nc>COL_MAX) continue;
+          if(['雷','军师','御','诏','隔','趁','关','上','狐'].includes(piece.name) && !isOwnHalf(nr, color)) continue;
+          if(['交','涉'].includes(piece.name)) { const fwd=color===BLACK?1:-1; if(dr===fwd) continue; }
+          if(['日','月','卫'].includes(piece.name) && nr!==shore) continue;
+          if(['妃'].includes(piece.name)) { if(!tianJiangs.some(t=>t.color===color && t.row===(color===BLACK?0:17))) continue; }
+          if(['树'].includes(piece.name)) { if(dr!==0 && ((row<shore && nr<shore)||(row>shore && nr>shore))) continue; if(dc!==0 && ((col<1 && nc<1)||(col>1 && nc>1))) continue; }
+          if(isInRiver(nr)) continue;
+          const target=board[nr-ROW_MIN]?.[nc-COL_MIN];
+          if(target && target.color===color) continue;
+          let canEat = target && target.color === enemy;
+          if(['雷','军师','诏','政','截','日','月','卫','城','舞','美','借','调','牵','混','假','欲','无','关','上','空','走','狐','鬼','蛇','画','促','围','李','砖','柱','主','釜'].includes(piece.name)) canEat = false;
+          if(piece.name==='追') { const fwd = color===BLACK?1:-1; if(dr!==fwd) canEat=false; }
+          if(piece.name==='擒') { if(target && (target.name.includes('天将')||target.name==='飞将'||target.name==='战将'||target.name==='异型将')) canEat=true; else canEat=false; }
+          if(piece.name==='笑') canEat = true;
+          if(piece.name==='隔' || piece.name==='趁' || piece.name==='畈') canEat = false;
+          if(piece.name==='声') { if(target && target.color===enemy) canEat=true; else canEat=false; }
+          if(piece.name==='指') { /* simplified */ canEat = target && target.color===enemy; }
+          if(piece.name==='树') { if(target && target.color===enemy) canEat=true; else canEat=false; }
+          if(piece.name==='苦') { if(target && target.color===enemy) canEat=false; else if(target && target.color===color) canEat=true; }
+          if(piece.name==='连') { if(target && target.color===enemy) canEat=true; else canEat=false; }
+          if(piece.name==='壳') { if(target && target.color===enemy) canEat=true; else canEat=false; }
+          if(piece.name==='暗') { if(target && target.color===enemy) canEat=true; else canEat=false; }
+          if(piece.name==='瞒') { if(target && target.color===enemy) canEat=true; else canEat=false; }
+          if(piece.name==='蛇') { if(target && target.color===enemy && (target.name==='士'||target.name==='象')) canEat=true; else canEat=false; }
+          if(piece.name==='人') { if(target && target.color===enemy) canEat=true; else canEat=false; }
+          if(piece.name==='以') { if(target && target.color===enemy) canEat=true; else canEat=false; }
+          if(piece.name==='打') { if(target && target.color===enemy) canEat=true; else canEat=false; }
+          if(piece.name==='远') { if(target && target.color===enemy) canEat=true; else canEat=false; }
+          if(piece.name==='虢') { if(target && target.color===enemy) canEat=true; else canEat=false; }
+          moves.push({type:'piece', fromRow:row, fromCol:col, toRow:nr, toCol:nc, isEat:canEat, pieceName:piece.name});
+        }
+      }
+      return moves;
+    }
+
+    function evaluateMove(move, color) {
+      let score = 0;
+      const toCol = move.toCol || move.toLeftCol;
+      const toRow = move.toRow;
+      if(move.isEat) {
+        if(move.type==='piece') { const t = board[toRow-ROW_MIN]?.[toCol-COL_MIN]; score += (pieceValues[t?.name]||100)*10; }
+        else if(move.type==='tianjiang') score += 500;
+        else if(move.type==='giant') score += 2000;
+      }
+      score += (10 - Math.abs(toCol - 1)) * 2;
+      score += Math.random() * 3;
+      return score;
+    }
+
+    function selectBestMove(color) {
+      const moves = generateMoves(color);
+      if(moves.length===0) return null;
+      const eat = moves.filter(m=>m.isEat);
+      let cand = eat.length>0 ? eat : moves;
+      let best=null, bestScore=-Infinity;
+      cand.forEach(m=>{ const s=evaluateMove(m,color); if(s>bestScore){ bestScore=s; best=m; } });
+      return best;
+    }
+
+    function applyMove(move, color) {
+      try {
+        if(move.type==='stackedDancer') {
+          const {dancer, toRow, toCol} = move;
+          const target = board[toRow-ROW_MIN]?.[toCol-COL_MIN];
+          if(target && target.color!==color) return false;
+          board[toRow-ROW_MIN][toCol-COL_MIN] = {name:'舞', color:color};
+          const idx = stackedDancers.indexOf(dancer);
+          if(idx > -1) stackedDancers.splice(idx, 1);
+          countPieces(); return true;
+        }
+        if(move.type==='tianjiang') {
+          const tl=move.toLeftCol, tr=tl+1, r=move.toRow;
+          [tl,tr].forEach(col=>{
+            const t=board[r-ROW_MIN]?.[col-COL_MIN];
+            if(t&&t.color!==color){ if(REVIVABLE_TYPES.includes(t.name)){ const p=t.color===BLACK?deadPoolBlack:deadPoolRed; p.push(t.name); } board[r-ROW_MIN][col-COL_MIN]=null; }
+          });
+          move.tj.leftCol=tl; move.tj.rightCol=tr; move.tj.row=r;
+        } else if(move.type==='giant') {
+          const g=move.giant;
+          for(let dr=0; dr<2; dr++) for(let dc=0; dc<2; dc++) {
+            const ir=g.topLeftRow+dr-ROW_MIN, ic=g.topLeftCol+dc-COL_MIN;
+            if(ir>=0&&ir<ROWS&&ic>=0&&ic<COLS){ const t=board[ir][ic]; if(t&&t.color!==color){ if(REVIVABLE_TYPES.includes(t.name)){ const p=t.color===BLACK?deadPoolBlack:deadPoolRed; p.push(t.name); } board[ir][ic]=null; } }
+          }
+          g.topLeftRow=move.toRow; g.topLeftCol=move.toCol;
+          for(let dr=0; dr<2; dr++) for(let dc=0; dc<2; dc++) {
+            const ir=g.topLeftRow+dr-ROW_MIN, ic=g.topLeftCol+dc-COL_MIN;
+            if(ir>=0&&ir<ROWS&&ic>=0&&ic<COLS){ const t=board[ir][ic]; if(t&&t.color!==color){ if(REVIVABLE_TYPES.includes(t.name)){ const p=t.color===BLACK?deadPoolBlack:deadPoolRed; p.push(t.name); } board[ir][ic]=null; } board[ir][ic]={name:'巨将',color}; }
+          }
+        } else {
+          const piece=board[move.fromRow-ROW_MIN][move.fromCol-COL_MIN];
+          const target=board[move.toRow-ROW_MIN]?.[move.toCol-COL_MIN];
+          if(target&&target.color!==color){ if(REVIVABLE_TYPES.includes(target.name)){ const p=target.color===BLACK?deadPoolBlack:deadPoolRed; p.push(target.name); } }
+          board[move.toRow-ROW_MIN][move.toCol-COL_MIN]=piece;
+          board[move.fromRow-ROW_MIN][move.fromCol-COL_MIN]=null;
+        }
+        countPieces(); return true;
+      } catch(e) { log(`❌ 走法异常: ${e.message}`, 'error'); return false; }
+    }
+
+    function autoStep() {
+      if(!autoRunning) return;
+      const w = checkWinner(); if(w) { log(`🏆 ${w==='red'?'红':'黑'}方清场获胜！`, 'warn'); stopAuto(); return; }
+      const move = selectBestMove(currentPlayer);
+      if(!move) { log(`⚠️ 无合法走法，结束`, 'warn'); stopAuto(); return; }
+      log(`🤖 ${currentPlayer==='red'?'红':'黑'}方: ${move.pieceName} ${move.isEat?'吃子!':''} 至 (${move.toRow||''},${move.toCol||move.toLeftCol||''})`);
+      if(applyMove(move, currentPlayer)) { drawBoard(); currentPlayer = currentPlayer===RED?BLACK:RED; statusBar.textContent = `🤖 ${currentPlayer==='red'?'红':'黑'}方思考中...`; }
+      else stopAuto();
+    }
+
+    function startAuto() { if(autoRunning) return; autoRunning=true; document.getElementById('autoPlayBtn').disabled=true; document.getElementById('pauseBtn').disabled=false; autoTimer=setInterval(autoStep,600); }
+    function stopAuto() { autoRunning=false; clearInterval(autoTimer); document.getElementById('autoPlayBtn').disabled=false; document.getElementById('pauseBtn').disabled=true; statusBar.textContent='🔹 已暂停'; }
+    function resetAndCenter() { stopAuto(); initPieces(); currentPlayer=RED; drawBoard(); countPieces(); selectedPiece=null; validMoves=[]; const cx=getX(1)-boardContainer.clientWidth/2, cy=getY(10)-boardContainer.clientHeight/2; boardContainer.scrollTo({left:cx, top:cy, behavior:'smooth'}); statusBar.textContent='🔹 已复位并居中'; log('🔄 棋盘已复位'); }
+
+    document.getElementById('autoPlayBtn').addEventListener('click', startAuto);
+    document.getElementById('pauseBtn').addEventListener('click', stopAuto);
+    document.getElementById('resetBtn').addEventListener('click', resetAndCenter);
+
+    function drawBoard() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#fff9ef'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.strokeStyle='#777'; ctx.lineWidth=1;
+      for(let r=0; r<ROWS; r++){const y=getY(ROW_MIN+r); ctx.beginPath(); ctx.moveTo(PADDING,y); ctx.lineTo(canvas.width-PADDING,y); ctx.stroke();}
+      for(let c=0; c<COLS; c++){const x=getX(COL_MIN+c); ctx.beginPath(); ctx.moveTo(x,PADDING); ctx.lineTo(x,canvas.height-PADDING); ctx.stroke();}
+      const ry1=getY(RIVER_ROW_START), ry2=getY(RIVER_ROW_END+1);
+      ctx.fillStyle='#1e5f7a'; ctx.globalAlpha=0.25; ctx.fillRect(PADDING,ry1,canvas.width-2*PADDING,ry2-ry1); ctx.globalAlpha=1;
+      ctx.font=`bold ${LINE_SPAN*1.0}px 'KaiTi'`; ctx.fillStyle='#fff'; ctx.shadowColor='#1a3a4a'; ctx.shadowBlur=10;
+      ctx.fillText('楚 河', canvas.width*0.3, (ry1+ry2)/2); ctx.fillText('汉 界', canvas.width*0.55, (ry1+ry2)/2);
+      ctx.shadowColor='transparent'; ctx.fillStyle='#1e5f7a'; ctx.globalAlpha=0.9;
+      ctx.fillText('楚 河', canvas.width*0.3, (ry1+ry2)/2); ctx.fillText('汉 界', canvas.width*0.55, (ry1+ry2)/2);
+      ctx.globalAlpha=1;
+
+      validMoves.forEach(m => {
+        const x = getX(m.col), y = getY(m.row);
+        ctx.beginPath(); ctx.arc(x, y, LINE_SPAN*0.15, 0, 2*Math.PI);
+        ctx.fillStyle = (selectedPiece && selectedPiece.color===BLACK) ? '#000000' : '#b91c1c';
+        ctx.fill(); ctx.strokeStyle = '#ffe0b5'; ctx.lineWidth = 1; ctx.stroke();
+      });
+
+      medicalBlack.forEach(m=>{ const x=getX(m.col),y=getY(m.row); ctx.fillStyle='#cce0ff'; ctx.globalAlpha=0.5; ctx.fillRect(x,y,LINE_SPAN,LINE_SPAN); ctx.globalAlpha=1; ctx.strokeStyle='#b91c1c'; ctx.lineWidth=3; ctx.fillStyle='#b91c1c'; ctx.beginPath(); ctx.moveTo(x+LINE_SPAN*0.2,y+LINE_SPAN*0.35); ctx.lineTo(x+LINE_SPAN*0.8,y+LINE_SPAN*0.5); ctx.lineTo(x+LINE_SPAN*0.2,y+LINE_SPAN*0.65); ctx.fill(); });
+      medicalRed.forEach(m=>{ const x=getX(m.col),y=getY(m.row); ctx.fillStyle='#cce0ff'; ctx.globalAlpha=0.5; ctx.fillRect(x,y,LINE_SPAN,LINE_SPAN); ctx.globalAlpha=1; ctx.strokeStyle='#b91c1c'; ctx.lineWidth=3; ctx.fillStyle='#b91c1c'; ctx.beginPath(); ctx.moveTo(x+LINE_SPAN*0.8,y+LINE_SPAN*0.35); ctx.lineTo(x+LINE_SPAN*0.2,y+LINE_SPAN*0.5); ctx.lineTo(x+LINE_SPAN*0.8,y+LINE_SPAN*0.65); ctx.fill(); });
+
+      tianJiangs.forEach(t=>{ const cx=(getX(t.leftCol)+getX(t.rightCol))/2, cy=getY(t.row); ctx.beginPath(); ctx.ellipse(cx,cy,LINE_SPAN*1.0,LINE_SPAN*0.55,0,0,Math.PI*2); ctx.fillStyle=t.color===RED?RED_COLOR:BLACK_COLOR; ctx.fill(); ctx.strokeStyle='#ffe0b5'; ctx.lineWidth=2.5; ctx.stroke(); ctx.fillStyle='#fff'; ctx.font=`bold ${LINE_SPAN*0.5}px KaiTi`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(`天将${t.type}`,cx,cy); });
+      giants.forEach(g=>{ const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; ctx.beginPath(); ctx.arc(cx,cy,LINE_SPAN*0.85,0,2*Math.PI); ctx.fillStyle=g.color===RED?RED_COLOR:BLACK_COLOR; ctx.fill(); ctx.strokeStyle='#ffe0b5'; ctx.lineWidth=3; ctx.stroke(); ctx.fillStyle='#fff'; ctx.font=`bold ${LINE_SPAN*0.5}px KaiTi`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('巨将',cx,cy); });
+
+      for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
+        const piece=board[r][c]; if(!piece || piece.name==='巨将') continue;
+        const x=getX(COL_MIN+c), y=getY(ROW_MIN+r);
+        ctx.beginPath(); ctx.arc(x,y,LINE_SPAN*0.38,0,2*Math.PI);
+        ctx.fillStyle=piece.color===RED?RED_COLOR:BLACK_COLOR; ctx.fill();
+        ctx.strokeStyle='#ffe0b5'; ctx.lineWidth=2; ctx.stroke();
+        if (selectedPiece && selectedPiece.type==='board' && selectedPiece.row===ROW_MIN+r && selectedPiece.col===COL_MIN+c) { ctx.lineWidth = 4; ctx.strokeStyle = '#fbbf24'; ctx.stroke(); }
+        ctx.fillStyle='#fff'; ctx.font=`bold ${LINE_SPAN*0.3}px KaiTi`; ctx.textAlign='center'; ctx.textBaseline='middle';
+        let dn = piece.name;
+        if(stackedDancers.find(d=>d.row===ROW_MIN+r && d.col===COL_MIN+c) && piece.name==='炮') dn='炮+舞';
+        ctx.fillText(dn, x, y);
+      }
+    }
+
+    initPieces(); drawBoard(); countPieces();
+    setTimeout(()=>{ const cx=getX(1)-boardContainer.clientWidth/2, cy=getY(10)-boardContainer.clientHeight/2; boardContainer.scrollTo({left:cx,top:cy,behavior:'auto'}); },150);
+
+    canvas.addEventListener('click', function(e) {
+      if(autoRunning) return;
+      const rect = canvas.getBoundingClientRect(), scaleX = canvas.width/rect.width, scaleY = canvas.height/rect.height;
+      const mx = (e.clientX-rect.left)*scaleX, my = (e.clientY-rect.top)*scaleY;
+      const logicCol = Math.round((mx-PADDING)/LINE_SPAN+COL_MIN), logicRow = Math.round((my-PADDING)/LINE_SPAN+ROW_MIN);
+      if (logicRow<ROW_MIN||logicRow>ROW_MAX||logicCol<COL_MIN||logicCol>COL_MAX) return;
+
+      for (const tj of tianJiangs) { const cx=(getX(tj.leftCol)+getX(tj.rightCol))/2, cy=getY(tj.row); if ((mx-cx)**2/(LINE_SPAN*1.0)**2+(my-cy)**2/(LINE_SPAN*0.55)**2<=1) { if(selectedPiece?.type==='tianjiang' && selectedPiece.tj===tj) {selectedPiece=null; validMoves=[]; drawBoard(); return;} selectedPiece={type:'tianjiang', tj, color:tj.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='tianjiang'&&m.tj===tj).map(m=>({row:m.toRow,col:m.toLeftCol})); drawBoard(); return; } }
+      for (const g of giants) { const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if ((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2) { selectedPiece={type:'giant', topLeftRow:g.topLeftRow, topLeftCol:g.topLeftCol, color:g.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='giant'&&m.giant.topLeftRow===g.topLeftRow&&m.giant.topLeftCol===g.topLeftCol).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
+      for (const d of stackedDancers) { if(d.row===logicRow && d.col===logicCol) { selectedPiece={type:'stackedDancer', dancer:d, color:d.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='stackedDancer'&&m.dancer===d).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
+      const r=logicRow-ROW_MIN, c=logicCol-COL_MIN; const piece=board[r]?.[c];
+      if(piece && piece.name!=='巨将') { if(selectedPiece?.type==='board'&&selectedPiece.row===logicRow&&selectedPiece.col===logicCol) {selectedPiece=null; validMoves=[]; drawBoard(); return;} selectedPiece={type:'board', row:logicRow, col:logicCol, color:piece.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='piece'&&m.fromRow===logicRow&&m.fromCol===logicCol).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; }
+      if(selectedPiece && !piece) {
+        const move = generateMoves(currentPlayer).find(m=>{
+          if(m.type==='piece'&&m.fromRow===selectedPiece.row&&m.fromCol===selectedPiece.col&&m.toRow===logicRow&&m.toCol===logicCol) return true;
+          if(m.type==='tianjiang'&&selectedPiece.type==='tianjiang'&&m.tj===selectedPiece.tj&&m.toRow===logicRow&&m.toLeftCol===logicCol) return true;
+          if(m.type==='giant'&&selectedPiece.type==='giant'&&m.giant.topLeftRow===selectedPiece.topLeftRow&&m.giant.topLeftCol===selectedPiece.topLeftCol&&m.toRow===logicRow&&m.toCol===logicCol) return true;
+          if(m.type==='stackedDancer'&&selectedPiece.type==='stackedDancer'&&m.dancer===selectedPiece.dancer&&m.toRow===logicRow&&m.toCol===logicCol) return true;
+          return false;
+        });
+        if(move) { applyMove(move, currentPlayer); currentPlayer = currentPlayer===RED?BLACK:RED; selectedPiece=null; validMoves=[]; drawBoard(); statusBar.textContent=`手动移动完成，轮到${currentPlayer==='red'?'红':'黑'}方`; return; }
+      }
+      selectedPiece=null; validMoves=[]; drawBoard();
+    });
+
+    canvas.addEventListener('mousemove', function(e) {
+      const rect=canvas.getBoundingClientRect(), scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+      const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
+      const logicCol=Math.round((mx-PADDING)/LINE_SPAN+COL_MIN), logicRow=Math.round((my-PADDING)/LINE_SPAN+ROW_MIN);
+      if(logicRow<ROW_MIN||logicRow>ROW_MAX||logicCol<COL_MIN||logicCol>COL_MAX){tooltip.style.display='none';return;}
+      let pieceName='', pieceColor='', ruleText='';
+      const stacked = stackedDancers.find(d=>d.row===logicRow && d.col===logicCol);
+      if(stacked) { pieceName='舞(叠放)'; pieceColor=stacked.color===RED?'红':'黑'; ruleText=ruleMap['舞']||''; }
+      if(!pieceName) for(const tj of tianJiangs){ const cx=(getX(tj.leftCol)+getX(tj.rightCol))/2, cy=getY(tj.row); if((mx-cx)**2/(LINE_SPAN*1.0)**2+(my-cy)**2/(LINE_SPAN*0.55)**2<=1){ pieceName='天将'+tj.type; pieceColor=tj.color===RED?'红':'黑'; ruleText=ruleMap[pieceName]||''; break; } }
+      if(!pieceName) for(const g of giants){ const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2){ pieceName='巨将'; pieceColor=g.color===RED?'红':'黑'; ruleText=ruleMap['巨将']||''; break; } }
+      if(!pieceName){ const r=logicRow-ROW_MIN, c=logicCol-COL_MIN; const piece=board[r]?.[c]; if(piece&&piece.name!=='巨将'){ pieceName=piece.name; pieceColor=piece.color===RED?'红':'黑'; ruleText=ruleMap[pieceName]||''; } else pieceName='空格'; }
+      tooltipCoord.textContent=`📍 行 ${logicRow} · 列 ${logicCol}`; tooltipPiece.textContent=pieceColor?`♟️ ${pieceColor}方 · ${pieceName}`:`· ${pieceName} ·`; tooltipRule.textContent=ruleText;
+      tooltip.style.display='block'; tooltip.style.left=(e.clientX+18)+'px'; tooltip.style.top=(e.clientY-50)+'px';
+    });
+    canvas.addEventListener('mouseleave', ()=>tooltip.style.display='none');
+  })();
+</script>
+</body>
+</html>
