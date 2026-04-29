@@ -651,18 +651,142 @@
         }
       });
 
-      tianJiangs.filter(t=>t.color===color).forEach(t=>{
-        for(let dr=-1; dr<=1; dr++) for(let dc=-1; dc<=1; dc++) {
-          if(dr===0 && dc===0) continue;
-          const nr=t.row+dr, nl=t.leftCol+dc, nr2=t.rightCol+dc;
-          if(nr<ROW_MIN||nr>ROW_MAX||nl<COL_MIN||nr2>COL_MAX || isInRiver(nr)) continue;
-          const conflict = tianJiangs.some(o=>o.color===color && o!==t && o.row===nr && (o.leftCol===nl || o.rightCol===nl || o.leftCol===nr2 || o.rightCol===nr2));
-          if(conflict) continue;
-          const target1 = board[nr-ROW_MIN]?.[nl-COL_MIN];
-          const target2 = board[nr-ROW_MIN]?.[nr2-COL_MIN];
-          const canEat = (target1 && target1.color===enemy) || (target2 && target2.color===enemy);
-          moves.push({type:'tianjiang', tj:t, toRow:nr, toLeftCol:nl, isEat:!!canEat, pieceName:'天将'+t.type});
-        }
+      tianJiangs.filter(t => t.color === color).forEach(t => {
+          const enemy = color === RED ? BLACK : RED;
+          const inCheck = isTianJiangInCheck(t);
+          const checkType = inCheck ? getCheckType(t) : null;
+          const shellAlive = board.some(row => row.some(p => p && p.color === color && p.name === '壳'));
+    
+          // 当前天将占据的格子
+          const currentCells = t.isHalved ? [{row: t.row, col: t.leftCol}] : [{row: t.row, col: t.leftCol}, {row: t.row, col: t.rightCol}];
+    
+          // 收集偏移量
+          let offsets = [];
+    
+          if (inCheck) {
+              // 被将军时的特异走法
+              if (checkType === '车') {
+                  // 可横竖走一至两格（不能吃子、不可越子、不可造成将帅照面）
+                  offsets.push([-1,0],[1,0],[0,-1],[0,1],[-2,0],[2,0],[0,-2],[0,2]);
+              } else if (checkType === '马') {
+                  // 可走一格，或日字斜对角跳（有蹩腿限制、不能吃子）
+                  offsets.push([-1,0],[1,0],[0,-1],[0,1],[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]);
+              } else if (checkType === '炮') {
+                  // 可横竖走一格，或隔一子紧邻跳过（不能吃子）
+                  offsets.push([-1,0],[1,0],[0,-1],[0,1],[-2,0],[2,0],[0,-2],[0,2]);
+              } else {
+                  // 其他棋子将军，只能走一格
+                  offsets.push([-1,0],[1,0],[0,-1],[0,1]);
+              }
+          } else {
+              // 标准走法：横竖一格
+              offsets.push([-1,0],[1,0],[0,-1],[0,1]);
+              // 壳棋存在或真将升级（大将）：士线一格
+              if (shellAlive || (t.type === '真' && t.isUpgraded)) {
+                  offsets.push([-1,-1],[-1,1],[1,-1],[1,1]);
+              }
+              // 壳棋存在时的隔子跳（横竖两格，必须隔一子）
+              if (shellAlive) {
+                  offsets.push([-2,0],[2,0],[0,-2],[0,2]);
+                  // 士线隔子跳（壳独有）
+                  offsets.push([-2,-2],[-2,2],[2,-2],[2,2]);
+              }
+          }
+    
+          // 卫现身后：车走法
+          if (t.type === '卫' && t.isRevealed) {
+              offsets = [];
+              for (let step = 1; step <= 8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
+          }
+    
+          // 去重
+          offsets = [...new Set(offsets.map(o => `${o[0]},${o[1]}`))].map(s => s.split(',').map(Number));
+    
+          for (const [dr, dc] of offsets) {
+              if (dr === 0 && dc === 0) continue;
+        
+              const newCells = currentCells.map(c => ({ row: c.row + dr, col: c.col + dc }));
+        
+              // 边界检查
+              if (newCells.some(c => c.row < ROW_MIN || c.row > ROW_MAX || c.col < COL_MIN || c.col > COL_MAX)) continue;
+              // 河界检查（天将不可入河）
+              if (newCells.some(c => isInRiver(c.row))) continue;
+        
+              // 是否被己方棋子占据
+              if (newCells.some(c => {
+                  const p = board[c.row-ROW_MIN]?.[c.col-COL_MIN];
+                  return p && p.color === color;
+              })) continue;
+        
+              // 判断是“走两格/日字/隔子跳”中的哪一种
+              const isTwoStep = (Math.abs(dr) === 2 && dc === 0) || (Math.abs(dc) === 2 && dr === 0);
+              const isKnightJump = (Math.abs(dr) === 2 && Math.abs(dc) === 1) || (Math.abs(dr) === 1 && Math.abs(dc) === 2);
+              const isDiagonalTwoStep = Math.abs(dr) === 2 && Math.abs(dc) === 2;
+        
+              if (isTwoStep) {
+                  // 走两格：需要判断是“特异走法（不能越子）”还是“壳棋隔子跳（必须隔子）”
+                  const midRow = currentCells[0].row + (dr > 0 ? 1 : -1);
+                  const midCol = currentCells[0].col + (dc > 0 ? 1 : -1);
+                  const midHasPiece = !!board[midRow-ROW_MIN]?.[midCol-COL_MIN];
+            
+                  if (shellAlive && !inCheck) {
+                      // 壳棋隔子跳：必须隔一子
+                      if (!midHasPiece) continue;
+                  } else {
+                      // 特异走法（被车/炮将）：不能越子
+                      if (midHasPiece) continue;
+                  }
+              }
+        
+              if (isKnightJump) {
+                  // 日字跳蹩腿检查（完整版）
+                  if (Math.abs(dr) === 2) {
+                      // 横向日字：纵向跳，检查横向蹩腿
+                      const legRow = currentCells[0].row + (dr > 0 ? 1 : -1);
+                      const legCol = currentCells[0].col;
+                      if (board[legRow-ROW_MIN]?.[legCol-COL_MIN]) continue;
+                  } else {
+                      // 纵向日字：横向跳，检查纵向蹩腿
+                      const legRow = currentCells[0].row;
+                      const legCol = currentCells[0].col + (dc > 0 ? 1 : -1);
+                      if (board[legRow-ROW_MIN]?.[legCol-COL_MIN]) continue;
+                  }
+              }
+        
+              if (isDiagonalTwoStep) {
+                  // 士线隔子跳（壳棋）：检查中间斜点是否有棋子
+                  const midRow = currentCells[0].row + (dr > 0 ? 1 : -1);
+                  const midCol = currentCells[0].col + (dc > 0 ? 1 : -1);
+                  if (!board[midRow-ROW_MIN]?.[midCol-COL_MIN]) continue; // 必须隔一子
+              }
+        
+              // 检查目标格是否有敌子
+              const hasEnemy = newCells.some(c => {
+                  const p = board[c.row-ROW_MIN]?.[c.col-COL_MIN];
+                  return p && p.color === enemy;
+              });
+        
+              // 被将军时：不能走到有敌子的格子上（不能吃子解将）
+              if (inCheck && hasEnemy) continue;
+        
+              // 未被将军时：可以吃子
+              const canEat = !inCheck && hasEnemy;
+        
+              // 将帅照面检查（特异走法不能造成照面）
+              if (inCheck) {
+                  // 这里的照面检查简化：如果天将真移动后与对方天将真在同一条纵线上且无遮挡，则无效
+                  if (t.type === '真' && wouldCauseGeneralFaceoff(t, newCells, color)) continue;
+              }
+        
+              moves.push({
+                  type: 'tianjiang',
+                  tj: t,
+                  toRow: newCells[0].row,
+                  toLeftCol: newCells[0].col,
+                  isEat: canEat,
+                  pieceName: '天将' + t.type
+              });
+          }
       });
 
       giants.filter(g=>g.color===color).forEach(g=>{
