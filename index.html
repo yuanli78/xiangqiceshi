@@ -848,6 +848,7 @@
       for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
         const piece=board[r][c];
         if(!piece || piece.color!==color || piece.name==='巨将') continue;
+        if(piece.name.startsWith('天将')) continue; // 天将由tianJiangs绘制，不在这里画
         if(piece.name==='炮' && stackedDancers.some(d=>d.row===ROW_MIN+r && d.col===COL_MIN+c && d.color===color)) continue;
         const row=ROW_MIN+r, col=COL_MIN+c;
         if(piece.name==='国象' && !isOwnHalf(row, color)) continue;
@@ -1159,7 +1160,7 @@
       for (const g of giants) { const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if ((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2) { selectedPiece={type:'giant', topLeftRow:g.topLeftRow, topLeftCol:g.topLeftCol, color:g.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='giant'&&m.giant.topLeftRow===g.topLeftRow&&m.giant.topLeftCol===g.topLeftCol).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
       for (const d of stackedDancers) { if(d.row===logicRow && d.col===logicCol) { selectedPiece={type:'stackedDancer', dancer:d, color:d.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='stackedDancer'&&m.dancer===d).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
       const r=logicRow-ROW_MIN, c=logicCol-COL_MIN; const piece=board[r]?.[c];
-      if(piece && piece.name!=='巨将') { if(selectedPiece?.type==='board'&&selectedPiece.row===logicRow&&selectedPiece.col===logicCol) {selectedPiece=null; validMoves=[]; drawBoard(); return;} selectedPiece={type:'board', row:logicRow, col:logicCol, color:piece.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='piece'&&m.fromRow===logicRow&&m.fromCol===logicCol).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; }
+      if(piece && piece.name!=='巨将'&& !piece.name.startsWith('天将')) { if(selectedPiece?.type==='board'&&selectedPiece.row===logicRow&&selectedPiece.col===logicCol) {selectedPiece=null; validMoves=[]; drawBoard(); return;} selectedPiece={type:'board', row:logicRow, col:logicCol, color:piece.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='piece'&&m.fromRow===logicRow&&m.fromCol===logicCol).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; }
       if(selectedPiece && !piece) {
         const move = generateMoves(currentPlayer).find(m=>{
           if(m.type==='piece'&&m.fromRow===selectedPiece.row&&m.fromCol===selectedPiece.col&&m.toRow===logicRow&&m.toCol===logicCol) return true;
