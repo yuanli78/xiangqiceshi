@@ -461,7 +461,178 @@
       if(red === 0) return BLACK;
       return null;
     }
+    // ========== 天将辅助函数 ==========
 
+   // 检查某个格子是否被敌方棋子攻击（用于判断天将是否被将军）
+   function isCellAttacked(row, col, defenderColor) {
+     const attackerColor = defenderColor === RED ? BLACK : RED;
+     // 检查普通棋子
+     for (let r = 0; r < ROWS; r++) {
+       for (let c = 0; c < COLS; c++) {
+         const piece = board[r][c];
+         if (!piece || piece.color !== attackerColor) continue;
+         if (canPieceAttackCell(piece, ROW_MIN + r, COL_MIN + c, row, col)) return true;
+       }
+     }
+     // 检查天将
+     for (const tj of tianJiangs) {
+       if (tj.color !== attackerColor) continue;
+       const cells = tj.isHalved ? [{row: tj.row, col: tj.leftCol}] : [{row: tj.row, col: tj.leftCol}, {row: tj.row, col: tj.rightCol}];
+       for (const cell of cells) {
+         if (canTianJiangAttackCell(tj, cell.row, cell.col, row, col)) return true;
+       }
+     }
+     // 检查巨将（巨将移动后覆盖2x2区域，可能攻击到目标格）
+     for (const g of giants) {
+       if (g.color !== attackerColor) continue;
+       // 巨将一次移动两格，若目标格在其某次移动后的四格范围内，则视为攻击
+       // 简化：检查巨将当前位置的相邻2×2区域是否能覆盖目标格（即距离<=2）
+       if (Math.abs(row - g.topLeftRow) <= 2 && Math.abs(col - g.topLeftCol) <= 2) {
+         // 进一步精确：巨将只能横竖走两格，若目标格在移动后的四格内，则攻击
+         // 这里简单处理：若目标格与巨将当前覆盖范围的行列差距不超2，则认为可攻击
+         const dr = row - g.topLeftRow, dc = col - g.topLeftCol;
+         if ((Math.abs(dr) === 2 && dc >= 0 && dc <= 1) || (Math.abs(dc) === 2 && dr >= 0 && dr <= 1)) return true;
+       }
+     }
+     return false;
+   }
+
+   // 判断一个普通棋子能否攻击到指定格子（简化版，支持常见攻击方式）
+   function canPieceAttackCell(piece, fromRow, fromCol, toRow, toCol) {
+     const dr = toRow - fromRow, dc = toCol - fromCol;
+     const name = piece.name;
+     // 车类横竖任意距离
+     if (['车','飞车','战车','异型车','追','截','隔','擒','指','声','苦','空','树','打','柱','远','主','虢','釜'].includes(name)) {
+       if (dr === 0 && dc !== 0) {
+         const step = dc > 0 ? 1 : -1;
+         for (let c = fromCol + step; c !== toCol; c += step) if (board[fromRow-ROW_MIN]?.[c-COL_MIN]) return false;
+         return true;
+       }
+       if (dc === 0 && dr !== 0) {
+         const step = dr > 0 ? 1 : -1;
+         for (let r = fromRow + step; r !== toRow; r += step) if (board[r-ROW_MIN]?.[fromCol-COL_MIN]) return false;
+         return true;
+       }
+     }
+     // 炮类隔子吃
+     if (['炮','飞炮','战炮','抛石器','异型炮','暗','趁','欲','砖'].includes(name)) {
+       if (dr === 0 && dc !== 0) {
+         let cnt = 0;
+         const step = dc > 0 ? 1 : -1;
+         for (let c = fromCol + step; c !== toCol; c += step) {
+           if (board[fromRow-ROW_MIN]?.[c-COL_MIN]) cnt++;
+         }
+         if (cnt === 1) return true;
+       }
+       if (dc === 0 && dr !== 0) {
+         let cnt = 0;
+         const step = dr > 0 ? 1 : -1;
+         for (let r = fromRow + step; r !== toRow; r += step) {
+           if (board[r-ROW_MIN]?.[fromCol-COL_MIN]) cnt++;
+         }
+         if (cnt === 1) return true;
+       }
+     }
+     // 马类日字
+     if (['马','飞马','战马','骡','异型马','妃'].includes(name)) {
+       if ((Math.abs(dr) === 2 && Math.abs(dc) === 1) || (Math.abs(dr) === 1 && Math.abs(dc) === 2)) {
+         // 简单忽略蹩腿，这里只判断攻击可能
+         return true;
+       }
+     }
+     // 斜线兵种及士类
+     if (['士','飞士','战士','士卒','影士','象','飞象','战象','国象','鹿','驼','悬','蝉','后','天兵','牵','混','笑','瞒','狐'].includes(name)) {
+       if (Math.abs(dr) === Math.abs(dc) && dr !== 0) {
+         const stepR = dr > 0 ? 1 : -1, stepC = dc > 0 ? 1 : -1;
+         let r = fromRow + stepR, c = fromCol + stepC;
+         while (r !== toRow && c !== toCol) {
+           if (board[r-ROW_MIN]?.[c-COL_MIN]) return false;
+           r += stepR; c += stepC;
+         }
+         return true;
+       }
+     }
+     // 将类（飞将、战将等）横竖斜一格
+     if (['飞将','战将','异型将'].includes(name)) {
+       if (Math.abs(dr) <= 1 && Math.abs(dc) <= 1) return true;
+       // 战将远距离吃子（直线或斜线无障碍）
+       if (name === '战将') {
+         if (dr === 0 || dc === 0 || Math.abs(dr) === Math.abs(dc)) {
+           const stepR = dr === 0 ? 0 : dr > 0 ? 1 : -1;
+           const stepC = dc === 0 ? 0 : dc > 0 ? 1 : -1;
+           let r = fromRow + stepR, c = fromCol + stepC;
+           while (r !== toRow && c !== toCol) {
+             if (board[r-ROW_MIN]?.[c-COL_MIN]) return false;
+             r += stepR; c += stepC;
+           }
+           return true;
+         }
+       }
+     }
+     // 其他棋子暂时认为不能远距离攻击
+     return false;
+   }
+
+   // 判断天将能否攻击某个格子（用于将军检测）
+   function canTianJiangAttackCell(tj, fromRow, fromCol, toRow, toCol) {
+     const dr = toRow - fromRow, dc = toCol - fromCol;
+     // 天将默认横竖走一格
+     if ((Math.abs(dr) === 1 && dc === 0) || (Math.abs(dc) === 1 && dr === 0)) return true;
+     // 升级后或壳存在时可走士线一格
+     if (tj.isUpgraded || tj.type === '真' && board.some(row => row.some(p => p && p.color === tj.color && p.name === '壳'))) {
+       if (Math.abs(dr) === 1 && Math.abs(dc) === 1) return true;
+     }
+     // 卫现身后横竖任意距离
+     if (tj.type === '卫' && tj.isRevealed) {
+       if (dr === 0 && dc !== 0) {
+         const step = dc > 0 ? 1 : -1;
+         for (let c = fromCol + step; c !== toCol; c += step) if (board[fromRow-ROW_MIN]?.[c-COL_MIN]) return false;
+         return true;
+       }
+       if (dc === 0 && dr !== 0) {
+         const step = dr > 0 ? 1 : -1;
+         for (let r = fromRow + step; r !== toRow; r += step) if (board[r-ROW_MIN]?.[fromCol-COL_MIN]) return false;
+         return true;
+       }
+     }
+     return false;
+   }
+
+   // 检查天将是否被将军
+   function isTianJiangInCheck(tj) {
+     const cells = tj.isHalved ? [{row: tj.row, col: tj.leftCol}] : [{row: tj.row, col: tj.leftCol}, {row: tj.row, col: tj.rightCol}];
+     return cells.some(c => isCellAttacked(c.row, c.col, tj.color));
+   }
+
+   // 获取威胁天将的敌方棋子类型（用于特异走法）
+   function getCheckType(tj) {
+     const cells = tj.isHalved ? [{row: tj.row, col: tj.leftCol}] : [{row: tj.row, col: tj.leftCol}, {row: tj.row, col: tj.rightCol}];
+     const attackerColor = tj.color === RED ? BLACK : RED;
+     for (const cell of cells) {
+       for (let r = 0; r < ROWS; r++) {
+         for (let c = 0; c < COLS; c++) {
+           const piece = board[r][c];
+           if (!piece || piece.color !== attackerColor) continue;
+           if (canPieceAttackCell(piece, ROW_MIN+r, COL_MIN+c, cell.row, cell.col)) {
+             const n = piece.name;
+             if (['车','飞车','战车','异型车','追','截','隔','擒','指','声','苦','空','树','打','柱','远','主','虢','釜'].includes(n)) return '车';
+             if (['马','飞马','战马','骡','异型马','妃'].includes(n)) return '马';
+             if (['炮','飞炮','战炮','抛石器','异型炮','暗','趁','欲','砖'].includes(n)) return '炮';
+             return 'other';
+           }
+         }
+       }
+       // 检查天将
+       for (const otj of tianJiangs) {
+         if (otj.color !== attackerColor) continue;
+         const ocells = otj.isHalved ? [{row: otj.row, col: otj.leftCol}] : [{row: otj.row, col: otj.leftCol}, {row: otj.row, col: otj.rightCol}];
+         for (const ac of ocells) {
+           if (canTianJiangAttackCell(otj, ac.row, ac.col, cell.row, cell.col)) return 'other';
+         }
+       }
+     }
+     return null; // 未被将军
+   }
     function generateMoves(color) {
       const moves = [];
       const enemy = color===RED?BLACK:RED;
