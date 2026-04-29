@@ -950,14 +950,53 @@
           if(idx > -1) stackedDancers.splice(idx, 1);
           countPieces(); return true;
         }
-        if(move.type==='tianjiang') {
-          const tl=move.toLeftCol, tr=tl+1, r=move.toRow;
-          [tl,tr].forEach(col=>{
-            const t=board[r-ROW_MIN]?.[col-COL_MIN];
-            if(t&&t.color!==color){ if(REVIVABLE_TYPES.includes(t.name)){ const p=t.color===BLACK?deadPoolBlack:deadPoolRed; p.push(t.name); } board[r-ROW_MIN][col-COL_MIN]=null; }
-          });
-          move.tj.leftCol=tl; move.tj.rightCol=tr; move.tj.row=r;
-        } else if(move.type==='giant') {
+              if (move.type === 'tianjiang') {
+                const t = move.tj;
+                const oldRow = t.row, oldLeft = t.leftCol, oldRight = t.rightCol;
+                const enemy = color === RED ? BLACK : RED;
+
+                // 清理旧位置
+                const oldCells = t.isHalved ? [{row: oldRow, col: oldLeft}] : [{row: oldRow, col: oldLeft}, {row: oldRow, col: oldRight}];
+                oldCells.forEach(c => {
+                  if (board[c.row-ROW_MIN]?.[c.col-COL_MIN]?.name === '天将' + t.type)
+                    board[c.row-ROW_MIN][c.col-COL_MIN] = null;
+                });
+
+                // 新位置
+                const newRow = move.toRow;
+                const newLeft = move.toLeftCol;
+                const newRight = newLeft + 1;
+                const newCells = t.isHalved ? [{row: newRow, col: newLeft}] : [{row: newRow, col: newLeft}, {row: newRow, col: newRight}];
+
+                // 吃子处理
+                if (move.isEat) {
+                  newCells.forEach(c => {
+                    const target = board[c.row-ROW_MIN]?.[c.col-COL_MIN];
+                    if (target && target.color === enemy) {
+                      if (REVIVABLE_TYPES.includes(target.name)) {
+                        const pool = target.color === BLACK ? deadPoolBlack : deadPoolRed;
+                        pool.push(target.name);
+                      }
+                      board[c.row-ROW_MIN][c.col-COL_MIN] = null;
+                    }
+                  });
+                  // 真将首次吃子升级
+                  if (t.type === '真' && !t.isUpgraded) {
+                    t.isUpgraded = true;
+                    log(`⚡ 天将真首次吃子，升级为大将！`, 'info');
+                  }
+                }
+
+                // 放置天将到新位置
+                newCells.forEach(c => {
+                  board[c.row-ROW_MIN][c.col-COL_MIN] = { name: '天将' + t.type, color: color };
+                });
+
+                // 更新天将坐标
+                t.row = newRow;
+                t.leftCol = newLeft;
+                t.rightCol = newRight;
+      } else if(move.type==='giant') {
           const g=move.giant;
           for(let dr=0; dr<2; dr++) for(let dc=0; dc<2; dc++) {
             const ir=g.topLeftRow+dr-ROW_MIN, ic=g.topLeftCol+dc-COL_MIN;
