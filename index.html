@@ -454,7 +454,30 @@
       return color === BLACK ? row <= RIVER_ROW_START-1 : row >= RIVER_ROW_END+1;
     }
     function isInRiver(row) { return row >= RIVER_ROW_START && row <= RIVER_ROW_END; }
+    function checkGameEnd() {
+      const redZhen = tianJiangs.find(t => t.type === '真' && t.color === RED);
+      const blackZhen = tianJiangs.find(t => t.type === '真' && t.color === BLACK);
 
+      if (!redZhen) return announceWinner(BLACK, '红方天将真被消灭');
+      if (!blackZhen) return announceWinner(RED, '黑方天将真被消灭');
+
+      if (!tianJiangHasValidMove(redZhen, RED)) return announceWinner(BLACK, '红方天将真被将死');
+      if (!tianJiangHasValidMove(blackZhen, BLACK)) return announceWinner(RED, '黑方天将真被将死');
+
+      return false;
+    }
+
+    function tianJiangHasValidMove(tj, color) {
+      const moves = generateMoves(color);
+      return moves.some(m => m.type === 'tianjiang' && m.tj === tj);
+    }
+
+    function announceWinner(winner, reason) {
+      stopAuto();
+      log(`🏆 ${winner===RED?'红方':'黑方'}获胜！(${reason})`, 'warn');
+      statusBar.textContent = `🏆 ${winner===RED?'红方':'黑方'}获胜！(${reason})`;
+      return true;
+    }
     function checkWinner() {
       const { black, red } = countPieces();
       if(black === 0) return RED;
@@ -1046,7 +1069,9 @@
             }
           }
         }
-        countPieces(); return true;
+            countPieces();
+            if (checkGameEnd()) return true;
+            return true;
       } catch(e) { log(`❌ 走法异常: ${e.message}`, 'error'); return false; }
     }
 
