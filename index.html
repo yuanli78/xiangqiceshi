@@ -1013,6 +1013,38 @@
           if(target&&target.color!==color){ if(REVIVABLE_TYPES.includes(target.name)){ const p=target.color===BLACK?deadPoolBlack:deadPoolRed; p.push(target.name); } }
           board[move.toRow-ROW_MIN][move.toCol-COL_MIN]=piece;
           board[move.fromRow-ROW_MIN][move.fromCol-COL_MIN]=null;
+                          // ========== 天将被吃处理（插入点） ==========
+          const attackedTianJiang = tianJiangs.find(tj =>
+            tj.color === target.color &&
+            ((tj.row === move.toRow && tj.leftCol === move.toCol) || (tj.row === move.toRow && tj.rightCol === move.toCol))
+          );
+          if (attackedTianJiang) {
+            attackedTianJiang.hp--;
+            if (attackedTianJiang.hp > 0 && !attackedTianJiang.isHalved) {
+              // 首次受伤：从两格变一格
+              attackedTianJiang.isHalved = true;
+              const otherCol = (move.toCol === attackedTianJiang.leftCol) ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
+              if (board[attackedTianJiang.row-ROW_MIN]?.[otherCol-COL_MIN]?.name === '天将' + attackedTianJiang.type) {
+                board[attackedTianJiang.row-ROW_MIN][otherCol-COL_MIN] = null;
+              }
+              attackedTianJiang.rightCol = attackedTianJiang.leftCol;
+              log(`${attackedTianJiang.color===RED?'红':'黑'}方天将${attackedTianJiang.type}受创，缩为一格！`, 'warn');
+              // 天将留场，吃子动作作废
+              board[move.toRow-ROW_MIN][move.toCol-COL_MIN] = { name:'天将'+attackedTianJiang.type, color: attackedTianJiang.color };
+              board[move.fromRow-ROW_MIN][move.fromCol-COL_MIN] = piece;
+              return false;
+            } else if (attackedTianJiang.hp <= 0) {
+              // 死亡
+              log(`${attackedTianJiang.color===RED?'红':'黑'}方天将${attackedTianJiang.type}被击杀！`, 'warn');
+              const deadCells = attackedTianJiang.isHalved ?
+                [{row: attackedTianJiang.row, col: attackedTianJiang.leftCol}] :
+                [{row: attackedTianJiang.row, col: attackedTianJiang.leftCol}, {row: attackedTianJiang.row, col: attackedTianJiang.rightCol}];
+              deadCells.forEach(c => {
+                board[c.row-ROW_MIN][c.col-COL_MIN] = null;
+              });
+              tianJiangs.splice(tianJiangs.indexOf(attackedTianJiang), 1);
+            }
+          }
         }
         countPieces(); return true;
       } catch(e) { log(`❌ 走法异常: ${e.message}`, 'error'); return false; }
