@@ -273,14 +273,14 @@
       giants.push({color: BLACK, topLeftRow: 6, topLeftCol: -5});
       giants.push({color: RED, topLeftRow: 10, topLeftCol: 7});
 
-      function addTianJiang(type, color, leftCol, row) {
-        tianJiangs.push({type, color, leftCol, rightCol: leftCol+1, row});
-      }
-
-      addTianJiang('真', BLACK, 4, 2);
-      addTianJiang('卫', BLACK, 7, 2);
-      addTianJiang('真', RED, -3, 15);
-      addTianJiang('卫', RED, -6, 15);
+      // 黑方天将真 — 占据两个格子
+      tianJiangs.push({ type:'真', color:BLACK, leftCol:4, rightCol:5, row:2, hp:2, isRevealed:false, isUpgraded:false, isHalved:false });
+      // 黑方天将卫
+      tianJiangs.push({ type:'卫', color:BLACK, leftCol:7, rightCol:8, row:2, hp:2, isRevealed:false, isUpgraded:false, isHalved:false });
+      // 红方天将真
+      tianJiangs.push({ type:'真', color:RED, leftCol:-3, rightCol:-2, row:15, hp:2, isRevealed:false, isUpgraded:false, isHalved:false });
+      // 红方天将卫
+      tianJiangs.push({ type:'卫', color:RED, leftCol:-6, rightCol:-5, row:15, hp:2, isRevealed:false, isUpgraded:false, isHalved:false });
 
       setCell(2,1,'飞将',BLACK); setCell(2,10,'战将',BLACK);
       setCell(0,-25,'异型将',BLACK);
