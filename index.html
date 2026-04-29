@@ -633,6 +633,30 @@
      }
      return null; // 未被将军
    }
+    // 判断天将移动后是否造成将帅照面
+    function wouldCauseGeneralFaceoff(tj, newCells, color) {
+        const enemyColor = color === RED ? BLACK : RED;
+        const enemyZhen = tianJiangs.find(t => t.type === '真' && t.color === enemyColor);
+        if (!enemyZhen) return false;
+    
+        const enemyCells = enemyZhen.isHalved ? [{row: enemyZhen.row, col: enemyZhen.leftCol}] : [{row: enemyZhen.row, col: enemyZhen.leftCol}, {row: enemyZhen.row, col: enemyZhen.rightCol}];
+    
+        // 检查是否在同一条纵线上且中间无遮挡
+        for (const nc of newCells) {
+            for (const ec of enemyCells) {
+                if (nc.col === ec.col) {
+                    const minRow = Math.min(nc.row, ec.row);
+                    const maxRow = Math.max(nc.row, ec.row);
+                    let blocked = false;
+                    for (let r = minRow + 1; r < maxRow; r++) {
+                        if (board[r-ROW_MIN]?.[nc.col-COL_MIN]) { blocked = true; break; }
+                    }
+                    if (!blocked) return true; // 照面
+                }
+            }
+        }
+        return false;
+    }
     function generateMoves(color) {
       const moves = [];
       const enemy = color===RED?BLACK:RED;
