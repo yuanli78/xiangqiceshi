@@ -923,6 +923,7 @@
         for(let [dr,dc] of offsets) {
           const nr=row+dr, nc=col+dc;
           if(nr<ROW_MIN||nr>ROW_MAX||nc<COL_MIN||nc>COL_MAX) continue;
+          if(piece.name === '测试') { /* canEat 保持上面的判断 */ }
           if(['雷','军师','御','诏','隔','趁','关','上','狐'].includes(piece.name) && !isOwnHalf(nr, color)) continue;
           if(['交','涉'].includes(piece.name)) { const fwd=color===BLACK?1:-1; if(dr===fwd) continue; }
           if(['日','月','卫'].includes(piece.name) && nr!==shore) continue;
