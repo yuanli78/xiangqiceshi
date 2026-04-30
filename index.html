@@ -80,7 +80,7 @@
 
     const RED = 'red', BLACK = 'black';
     const RED_COLOR = '#b91c1c', BLACK_COLOR = '#3a2a1a';
-    const RIVER_ROW_START = 7, RIVER_ROW_END = 9;
+    const RIVER_ROW_START = 8, RIVER_ROW_END = 9;
     const BLACK_SHORE = 7, RED_SHORE = 10;
 
     function getX(c) { return PADDING + (c - COL_MIN) * LINE_SPAN; }
@@ -1132,29 +1132,29 @@
       ctx.strokeStyle='#777'; ctx.lineWidth=1;
       for(let r=0; r<ROWS; r++){const y=getY(ROW_MIN+r); ctx.beginPath(); ctx.moveTo(PADDING,y); ctx.lineTo(canvas.width-PADDING,y); ctx.stroke();}
       for(let c=0; c<COLS; c++){const x=getX(COL_MIN+c); ctx.beginPath(); ctx.moveTo(x,PADDING); ctx.lineTo(x,canvas.height-PADDING); ctx.stroke();}
-      // 河界背景：画在行7下方到行10上方之间（即河岸之间的空隙）
-      const riverTop = getY(7) + LINE_SPAN * 0.5;    // 行7格点下方
-      const riverBottom = getY(10) - LINE_SPAN * 0.5; // 行10格点上方
+      // 河界背景：画在行7格点下方到行10格点上方之间的空隙
+      const riverTopY = getY(7) + LINE_SPAN * 0.5;   // 行7中心点偏下
+      const riverBottomY = getY(10) - LINE_SPAN * 0.5; // 行10中心点偏上
       ctx.fillStyle = '#1e5f7a';
       ctx.globalAlpha = 0.25;
-      ctx.fillRect(PADDING, riverTop, canvas.width - 2 * PADDING, riverBottom - riverTop);
+      ctx.fillRect(PADDING, riverTopY, canvas.width - 2 * PADDING, riverBottomY - riverTopY);
       ctx.globalAlpha = 1;
 
-      // 河界文字：画在河界区域的正中间
-      const riverCenterY = (riverTop + riverBottom) / 2;
+      // 河界文字：画在空隙正中央
+      const riverCenterY = (riverTopY + riverBottomY) / 2;
       ctx.font = `bold ${LINE_SPAN * 1.0}px 'KaiTi'`;
       ctx.fillStyle = '#fff';
       ctx.shadowColor = '#1a3a4a';
       ctx.shadowBlur = 10;
       ctx.fillText('楚  河', canvas.width * 0.3, riverCenterY);
       ctx.fillText('汉  界', canvas.width * 0.55, riverCenterY);
+      // 再画一层加深文字
       ctx.shadowColor = 'transparent';
       ctx.fillStyle = '#1e5f7a';
       ctx.globalAlpha = 0.9;
       ctx.fillText('楚  河', canvas.width * 0.3, riverCenterY);
       ctx.fillText('汉  界', canvas.width * 0.55, riverCenterY);
       ctx.globalAlpha = 1;
-
       validMoves.forEach(m => {
         const x = getX(m.col), y = getY(m.row);
         ctx.beginPath(); ctx.arc(x, y, LINE_SPAN*0.15, 0, 2*Math.PI);
