@@ -1140,7 +1140,15 @@
       ctx.fillRect(PADDING, riverTop, canvas.width - 2 * PADDING, riverBottom - riverTop);
       ctx.globalAlpha = 1;
 
-      // 河界文字：垂直居中于背景区域
+      // 河界背景：完整覆盖行7、行8、行9的格子区域
+      const riverTop = getY(7) - LINE_SPAN / 2;       // 行7顶部的横线
+      const riverBottom = getY(9) + LINE_SPAN / 2;    // 行9底部的横线
+      ctx.fillStyle = '#1e5f7a';
+      ctx.globalAlpha = 0.25;
+      ctx.fillRect(PADDING, riverTop, canvas.width - 2 * PADDING, riverBottom - riverTop);
+      ctx.globalAlpha = 1;
+
+      // 河界文字放在三行背景正中间
       const riverCenterY = (riverTop + riverBottom) / 2;
       ctx.font = `bold ${LINE_SPAN * 1.0}px 'KaiTi'`;
       ctx.fillStyle = '#fff';
