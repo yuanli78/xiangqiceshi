@@ -1132,13 +1132,28 @@
       ctx.strokeStyle='#777'; ctx.lineWidth=1;
       for(let r=0; r<ROWS; r++){const y=getY(ROW_MIN+r); ctx.beginPath(); ctx.moveTo(PADDING,y); ctx.lineTo(canvas.width-PADDING,y); ctx.stroke();}
       for(let c=0; c<COLS; c++){const x=getX(COL_MIN+c); ctx.beginPath(); ctx.moveTo(x,PADDING); ctx.lineTo(x,canvas.height-PADDING); ctx.stroke();}
-      const ry1=getY(RIVER_ROW_START), ry2=getY(RIVER_ROW_END+1);
-      ctx.fillStyle='#1e5f7a'; ctx.globalAlpha=0.25; ctx.fillRect(PADDING,ry1,canvas.width-2*PADDING,ry2-ry1); ctx.globalAlpha=1;
-      ctx.font=`bold ${LINE_SPAN*1.0}px 'KaiTi'`; ctx.fillStyle='#fff'; ctx.shadowColor='#1a3a4a'; ctx.shadowBlur=10;
-      ctx.fillText('楚 河', canvas.width*0.3, (ry1+ry2)/2); ctx.fillText('汉 界', canvas.width*0.55, (ry1+ry2)/2);
-      ctx.shadowColor='transparent'; ctx.fillStyle='#1e5f7a'; ctx.globalAlpha=0.9;
-      ctx.fillText('楚 河', canvas.width*0.3, (ry1+ry2)/2); ctx.fillText('汉 界', canvas.width*0.55, (ry1+ry2)/2);
-      ctx.globalAlpha=1;
+      // 河界背景：画在行7下方到行10上方之间（即河岸之间的空隙）
+      const riverTop = getY(7) + LINE_SPAN * 0.5;    // 行7格点下方
+      const riverBottom = getY(10) - LINE_SPAN * 0.5; // 行10格点上方
+      ctx.fillStyle = '#1e5f7a';
+      ctx.globalAlpha = 0.25;
+      ctx.fillRect(PADDING, riverTop, canvas.width - 2 * PADDING, riverBottom - riverTop);
+      ctx.globalAlpha = 1;
+
+      // 河界文字：画在河界区域的正中间
+      const riverCenterY = (riverTop + riverBottom) / 2;
+      ctx.font = `bold ${LINE_SPAN * 1.0}px 'KaiTi'`;
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = '#1a3a4a';
+      ctx.shadowBlur = 10;
+      ctx.fillText('楚  河', canvas.width * 0.3, riverCenterY);
+      ctx.fillText('汉  界', canvas.width * 0.55, riverCenterY);
+      ctx.shadowColor = 'transparent';
+      ctx.fillStyle = '#1e5f7a';
+      ctx.globalAlpha = 0.9;
+      ctx.fillText('楚  河', canvas.width * 0.3, riverCenterY);
+      ctx.fillText('汉  界', canvas.width * 0.55, riverCenterY);
+      ctx.globalAlpha = 1;
 
       validMoves.forEach(m => {
         const x = getX(m.col), y = getY(m.row);
