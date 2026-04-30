@@ -1132,14 +1132,7 @@
       ctx.strokeStyle='#777'; ctx.lineWidth=1;
       for(let r=0; r<ROWS; r++){const y=getY(ROW_MIN+r); ctx.beginPath(); ctx.moveTo(PADDING,y); ctx.lineTo(canvas.width-PADDING,y); ctx.stroke();}
       for(let c=0; c<COLS; c++){const x=getX(COL_MIN+c); ctx.beginPath(); ctx.moveTo(x,PADDING); ctx.lineTo(x,canvas.height-PADDING); ctx.stroke();}
-            // 河界背景：紧贴行7下行线和行10上行线
-      const riverTop = getY(7) + LINE_SPAN;          // 行7与行8之间的线
-      const riverBottom = getY(10) - LINE_SPAN;      // 行9与行10之间的线
-      ctx.fillStyle = '#1e5f7a';
-      ctx.globalAlpha = 0.25;
-      ctx.fillRect(PADDING, riverTop, canvas.width - 2 * PADDING, riverBottom - riverTop);
-      ctx.globalAlpha = 1;
-
+            
       // 河界背景：完整覆盖行7、行8、行9的格子区域
       const riverTop = getY(7) - LINE_SPAN / 2;       // 行7顶部的横线
       const riverBottom = getY(9) + LINE_SPAN / 2;    // 行9底部的横线
