@@ -923,7 +923,6 @@
         for(let [dr,dc] of offsets) {
           const nr=row+dr, nc=col+dc;
           if(nr<ROW_MIN||nr>ROW_MAX||nc<COL_MIN||nc>COL_MAX) continue;
-          if(piece.name === '测试') { /* canEat 保持上面的判断 */ }
           if(['雷','军师','御','诏','隔','趁','关','上','狐'].includes(piece.name) && !isOwnHalf(nr, color)) continue;
           if(['交','涉'].includes(piece.name)) { const fwd=color===BLACK?1:-1; if(dr===fwd) continue; }
           if(['日','月','卫'].includes(piece.name) && nr!==shore) continue;
@@ -933,6 +932,8 @@
           const target=board[nr-ROW_MIN]?.[nc-COL_MIN];
           if(target && target.color===color) continue;
           let canEat = target && target.color === enemy;
+          if (piece.name !== '测试') {
+             // 下面原有的所有 canEat 修改逻辑都保持不动
           if(['雷','军师','诏','政','截','日','月','卫','城','舞','美','借','调','牵','混','假','欲','无','关','上','空','走','狐','鬼','蛇','画','促','围','李','砖','柱','主','釜'].includes(piece.name)) canEat = false;
           if(piece.name==='追') { const fwd = color===BLACK?1:-1; if(dr!==fwd) canEat=false; }
           if(piece.name==='擒') { if(target && (target.name.includes('天将')||target.name==='飞将'||target.name==='战将'||target.name==='异型将')) canEat=true; else canEat=false; }
@@ -952,6 +953,7 @@
           if(piece.name==='打') { if(target && target.color===enemy) canEat=true; else canEat=false; }
           if(piece.name==='远') { if(target && target.color===enemy) canEat=true; else canEat=false; }
           if(piece.name==='虢') { if(target && target.color===enemy) canEat=true; else canEat=false; }
+          }// ← 这是新增的闭合括号
           moves.push({type:'piece', fromRow:row, fromCol:col, toRow:nr, toCol:nc, isEat:canEat, pieceName:piece.name});
         }
       }
