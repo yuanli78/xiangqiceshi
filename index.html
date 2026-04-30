@@ -448,6 +448,10 @@
       setCell(RED_SHORE, 1, '涉', RED); setCell(RED_SHORE, -3, '日', RED); setCell(RED_SHORE, 6, '月', RED); setCell(RED_SHORE, 0, '卫', RED);
       setCell(15,11,'城',RED); setCell(15,-14,'城',RED); setCell(15,12,'轰',RED); setCell(15,-15,'轰',RED);
       setCell(14,3,'虎',RED); setCell(16,6,'妃',RED); setCell(16,-8,'妃',RED);
+            // ===== 测试棋子（正式版删除此段） =====
+      setCell(0, 0, '测试', BLACK);   // 黑方测试棋，全盘移动/全盘吃
+      setCell(17, 0, '测试', RED);    // 红方测试棋
+      // ===== 测试棋子结束 =====
     }
 
     function isOwnHalf(row, color) {
