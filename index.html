@@ -902,6 +902,21 @@
         else if(piece.name === '笑' || piece.name === '瞒') offsets = [[-1,-1],[-1,1],[1,-1],[1,1],[-2,-2],[-2,2],[2,-2],[2,2]];
         else if(piece.name === '树') { for(let step=1; step<=8; step++) { if(row+step!==row) offsets.push([step,0],[-step,0]); if(col+step!==col) offsets.push([0,step],[0,-step]); } }
         else if(piece.name === '狐') offsets = [[-1,-1],[-1,1],[1,-1],[1,1]];
+        else if(piece.name === '测试') {
+          // 测试棋子：全盘任意移动，全盘任意吃子
+          for (let tr = ROW_MIN; tr <= ROW_MAX; tr++) {
+            for (let tc = COL_MIN; tc <= COL_MAX; tc++) {
+              if (tr === row && tc === col) continue; // 跳过自身
+              if (isInRiver(tr)) continue; // 不入河（若需入河可删除此行）
+              const tgt = board[tr - ROW_MIN]?.[tc - COL_MIN];
+              if (tgt && tgt.color === color) continue; // 不选己方棋子
+              const canEat = tgt && tgt.color === enemy;
+              // 跳过巨将占位格（巨将特殊处理，测试棋不吃巨将可删此段）
+              if (tgt && tgt.name === '巨将') continue;
+              offsets.push([tr - row, tc - col]);
+            }
+          }
+        }
         else if(piece.name === '画' || piece.name === '促') continue; // 画不能主动移动，促初始不能移动
         else offsets = [[-1,0],[1,0],[0,-1],[0,1]];
 
