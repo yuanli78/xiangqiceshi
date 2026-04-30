@@ -1132,23 +1132,15 @@
       ctx.strokeStyle='#777'; ctx.lineWidth=1;
       for(let r=0; r<ROWS; r++){const y=getY(ROW_MIN+r); ctx.beginPath(); ctx.moveTo(PADDING,y); ctx.lineTo(canvas.width-PADDING,y); ctx.stroke();}
       for(let c=0; c<COLS; c++){const x=getX(COL_MIN+c); ctx.beginPath(); ctx.moveTo(x,PADDING); ctx.lineTo(x,canvas.height-PADDING); ctx.stroke();}
-      // 河界背景：画在行7格点下方到行10格点上方之间的空隙
-      const riverTopY = getY(7) + LINE_SPAN * 0.5;   // 行7中心点偏下
-      const riverBottomY = getY(10) - LINE_SPAN * 0.5; // 行10中心点偏上
-      ctx.fillStyle = '#1e5f7a';
-      ctx.globalAlpha = 0.25;
-      ctx.fillRect(PADDING, riverTopY, canvas.width - 2 * PADDING, riverBottomY - riverTopY);
-      ctx.globalAlpha = 1;
-
-            // 河界背景：紧贴行7下线和行10上线
-      const riverTop = getY(7) + LINE_SPAN / 2;    // 行7格点下方
-      const riverBottom = getY(10) - LINE_SPAN / 2; // 行10格点上方
+            // 河界背景：紧贴行7下行线和行10上行线
+      const riverTop = getY(7) + LINE_SPAN;          // 行7与行8之间的线
+      const riverBottom = getY(10) - LINE_SPAN;      // 行9与行10之间的线
       ctx.fillStyle = '#1e5f7a';
       ctx.globalAlpha = 0.25;
       ctx.fillRect(PADDING, riverTop, canvas.width - 2 * PADDING, riverBottom - riverTop);
       ctx.globalAlpha = 1;
 
-      // 河界文字：居中显示在河界区域
+      // 河界文字：垂直居中于背景区域
       const riverCenterY = (riverTop + riverBottom) / 2;
       ctx.font = `bold ${LINE_SPAN * 1.0}px 'KaiTi'`;
       ctx.fillStyle = '#fff';
