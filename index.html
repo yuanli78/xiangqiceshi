@@ -1213,7 +1213,7 @@
       for (const d of stackedDancers) { if(d.row===logicRow && d.col===logicCol) { selectedPiece={type:'stackedDancer', dancer:d, color:d.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='stackedDancer'&&m.dancer===d).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
       const r=logicRow-ROW_MIN, c=logicCol-COL_MIN; const piece=board[r]?.[c];
       // 如果已选中己方棋子，且点击的是敌方棋子，优先尝试吃子移动
-      if (selectedPiece && piece && piece.color !== currentPlayer && piece.name !== '巨将' && !piece.name.startsWith('天将')) {
+      if (selectedPiece && piece && piece.color !== currentPlayer && piece.name !== '巨将'){
         const move = generateMoves(currentPlayer).find(m => {
           if (m.type === 'piece' && selectedPiece.type === 'board' && m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col && m.toRow === logicRow && m.toCol === logicCol) return true;
           if (m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' && m.tj === selectedPiece.tj && m.toRow === logicRow && m.toLeftCol === logicCol) return true;
