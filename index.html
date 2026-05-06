@@ -1208,7 +1208,38 @@
       const logicCol = Math.round((mx-PADDING)/LINE_SPAN+COL_MIN), logicRow = Math.round((my-PADDING)/LINE_SPAN+ROW_MIN);
       if (logicRow<ROW_MIN||logicRow>ROW_MAX||logicCol<COL_MIN||logicCol>COL_MAX) return;
 
-      for (const tj of tianJiangs) { const cx=(getX(tj.leftCol)+getX(tj.rightCol))/2, cy=getY(tj.row); if ((mx-cx)**2/(LINE_SPAN*1.0)**2+(my-cy)**2/(LINE_SPAN*0.55)**2<=1) { if(selectedPiece?.type==='tianjiang' && selectedPiece.tj===tj) {selectedPiece=null; validMoves=[]; drawBoard(); return;} selectedPiece={type:'tianjiang', tj, color:tj.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='tianjiang'&&m.tj===tj).map(m=>({row:m.toRow,col:m.toLeftCol})); drawBoard(); return; } }
+            // 天将点击处理：优先吃子，再选中
+      for (const tj of tianJiangs) {
+        const cx=(getX(tj.leftCol)+getX(tj.rightCol))/2, cy=getY(tj.row);
+        if ((mx-cx)**2/(LINE_SPAN*1.0)**2+(my-cy)**2/(LINE_SPAN*0.55)**2<=1) {
+          // 已有选中的己方棋子，且点击的是敌方天将 → 尝试吃子
+          if (selectedPiece && tj.color !== currentPlayer) {
+            const move = generateMoves(currentPlayer).find(m => {
+              if (m.type === 'piece' && selectedPiece.type === 'board' && m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col && m.toRow === tj.row && (m.toCol === tj.leftCol || m.toCol === tj.rightCol)) return true;
+              if (m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' && m.tj === selectedPiece.tj && m.toRow === tj.row && m.toLeftCol === tj.leftCol) return true;
+              if (m.type === 'giant' && selectedPiece.type === 'giant' && m.giant.topLeftRow === selectedPiece.topLeftRow && m.giant.topLeftCol === selectedPiece.topLeftCol && m.toRow === tj.row && (m.toCol === tj.leftCol || m.toCol === tj.rightCol)) return true;
+              return false;
+            });
+            if (move) {
+              if (applyMove(move, currentPlayer)) {
+                currentPlayer = currentPlayer === RED ? BLACK : RED;
+                selectedPiece = null;
+                validMoves = [];
+                drawBoard();
+                statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
+                return;
+              }
+            }
+          }
+          // 正常选中/取消选中天将
+          if (selectedPiece?.type === 'tianjiang' && selectedPiece.tj === tj) {
+            selectedPiece = null; validMoves = []; drawBoard(); return;
+          }
+          selectedPiece = { type:'tianjiang', tj, color:tj.color };
+          validMoves = generateMoves(currentPlayer).filter(m => m.type === 'tianjiang' && m.tj === tj).map(m => ({ row: m.toRow, col: m.toLeftCol }));
+          drawBoard(); return;
+        }
+      }
       for (const g of giants) { const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if ((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2) { selectedPiece={type:'giant', topLeftRow:g.topLeftRow, topLeftCol:g.topLeftCol, color:g.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='giant'&&m.giant.topLeftRow===g.topLeftRow&&m.giant.topLeftCol===g.topLeftCol).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
       for (const d of stackedDancers) { if(d.row===logicRow && d.col===logicCol) { selectedPiece={type:'stackedDancer', dancer:d, color:d.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='stackedDancer'&&m.dancer===d).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
       const r=logicRow-ROW_MIN, c=logicCol-COL_MIN; const piece=board[r]?.[c];
