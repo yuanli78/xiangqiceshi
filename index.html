@@ -1076,16 +1076,23 @@
           );
           if (attackedTianJiang) {
             attackedTianJiang.hp--;
-            if (attackedTianJiang.hp > 0 && !attackedTianJiang.isHalved) {
+              if (attackedTianJiang.hp > 0 && !attackedTianJiang.isHalved) {
               // 首次受伤：从两格变一格
               attackedTianJiang.isHalved = true;
+              // 清掉天将的另一个格子（不是被攻击的那个）
               const otherCol = (move.toCol === attackedTianJiang.leftCol) ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
               if (board[attackedTianJiang.row-ROW_MIN]?.[otherCol-COL_MIN]?.name === '天将' + attackedTianJiang.type) {
                 board[attackedTianJiang.row-ROW_MIN][otherCol-COL_MIN] = null;
               }
+              // 天将的左右列都设为被攻击的列（变为一格）
               attackedTianJiang.rightCol = attackedTianJiang.leftCol;
+              // ⭐ 攻击棋子正常留在目标格（board 上已经放了攻击棋子 piece）
+              // ⭐ 天将也需要占据被攻击的格子（和攻击棋子同格，但优先显示天将的半血状态）
+              // 这里我们不做 board 覆盖，让攻击棋子留在目标格，天将只在 tianJiangs 数组中更新
+              // 半血天将在绘制时用标准圆形，覆盖在攻击棋子的格子上方
               log(`${attackedTianJiang.color===RED?'红':'黑'}方天将${attackedTianJiang.type}受创，缩为一格！`, 'warn');
-              // 天将留场，吃子动作作废
+              // 不 return false，让吃子流程正常结束（把这步棋视为成功的攻击）
+            }
               board[move.toRow-ROW_MIN][move.toCol-COL_MIN] = { name:'天将'+attackedTianJiang.type, color: attackedTianJiang.color };
               board[move.fromRow-ROW_MIN][move.fromCol-COL_MIN] = piece;
               return false;
