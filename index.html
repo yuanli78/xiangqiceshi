@@ -509,15 +509,6 @@
         if (canTianJiangAttackCell(tj, cell.row, cell.col, row, col)) return true;
       }
     }
-          // 正常选中/取消选中天将
-          if (selectedPiece?.type === 'tianjiang' && selectedPiece.tj === tj) {
-            selectedPiece = null; validMoves = []; drawBoard(); return;
-          }
-          selectedPiece = { type:'tianjiang', tj, color:tj.color };
-          validMoves = generateMoves(currentPlayer).filter(m => m.type === 'tianjiang' && m.tj === tj).map(m => ({ row: m.toRow, col: m.toLeftCol }));
-          drawBoard(); return;
-        }
-      }
      // 检查巨将（巨将移动后覆盖2x2区域，可能攻击到目标格）
      for (const g of giants) {
        if (g.color !== attackerColor) continue;
