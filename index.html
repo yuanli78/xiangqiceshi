@@ -1176,7 +1176,34 @@
       medicalBlack.forEach(m=>{ const x=getX(m.col),y=getY(m.row); ctx.fillStyle='#cce0ff'; ctx.globalAlpha=0.5; ctx.fillRect(x,y,LINE_SPAN,LINE_SPAN); ctx.globalAlpha=1; ctx.strokeStyle='#b91c1c'; ctx.lineWidth=3; ctx.fillStyle='#b91c1c'; ctx.beginPath(); ctx.moveTo(x+LINE_SPAN*0.2,y+LINE_SPAN*0.35); ctx.lineTo(x+LINE_SPAN*0.8,y+LINE_SPAN*0.5); ctx.lineTo(x+LINE_SPAN*0.2,y+LINE_SPAN*0.65); ctx.fill(); });
       medicalRed.forEach(m=>{ const x=getX(m.col),y=getY(m.row); ctx.fillStyle='#cce0ff'; ctx.globalAlpha=0.5; ctx.fillRect(x,y,LINE_SPAN,LINE_SPAN); ctx.globalAlpha=1; ctx.strokeStyle='#b91c1c'; ctx.lineWidth=3; ctx.fillStyle='#b91c1c'; ctx.beginPath(); ctx.moveTo(x+LINE_SPAN*0.8,y+LINE_SPAN*0.35); ctx.lineTo(x+LINE_SPAN*0.2,y+LINE_SPAN*0.5); ctx.lineTo(x+LINE_SPAN*0.8,y+LINE_SPAN*0.65); ctx.fill(); });
 
-      tianJiangs.forEach(t=>{ const cx=(getX(t.leftCol)+getX(t.rightCol))/2, cy=getY(t.row); ctx.beginPath(); ctx.ellipse(cx,cy,LINE_SPAN*1.0,LINE_SPAN*0.55,0,0,Math.PI*2); ctx.fillStyle=t.color===RED?RED_COLOR:BLACK_COLOR; ctx.fill(); ctx.strokeStyle='#ffe0b5'; ctx.lineWidth=2.5; ctx.stroke(); ctx.fillStyle='#fff'; ctx.font=`bold ${LINE_SPAN*0.5}px KaiTi`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(`天将${t.type}`,cx,cy); });
+      tianJiangs.forEach(t=>{
+        if (t.isHalved) {
+          // 半血天将：画标准圆形（加粗边框表示受伤）
+          const x = getX(t.leftCol), y = getY(t.row);
+          ctx.beginPath(); ctx.arc(x, y, LINE_SPAN*0.38, 0, 2*Math.PI);
+          ctx.fillStyle = t.color===RED ? RED_COLOR : BLACK_COLOR;
+          ctx.fill();
+          ctx.strokeStyle = '#ffe0b5';
+          ctx.lineWidth = 3;  // 加粗边框
+          ctx.stroke();
+          ctx.fillStyle = '#fff';
+          ctx.font = `bold ${LINE_SPAN*0.3}px KaiTi`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`天将${t.type}`, x, y);
+        } else {
+          // 正常天将：画椭圆（原来的绘制方式）
+          const cx=(getX(t.leftCol)+getX(t.rightCol))/2, cy=getY(t.row);
+          ctx.beginPath(); ctx.ellipse(cx,cy,LINE_SPAN*1.0,LINE_SPAN*0.55,0,0,Math.PI*2);
+          ctx.fillStyle=t.color===RED?RED_COLOR:BLACK_COLOR; ctx.fill();
+          ctx.strokeStyle='#ffe0b5'; ctx.lineWidth=2.5; ctx.stroke();
+          ctx.fillStyle='#fff';
+          ctx.font=`bold ${LINE_SPAN*0.5}px KaiTi`;
+          ctx.textAlign='center';
+          ctx.textBaseline='middle';
+          ctx.fillText(`天将${t.type}`,cx,cy);
+        }
+      });
       giants.forEach(g=>{ const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; ctx.beginPath(); ctx.arc(cx,cy,LINE_SPAN*0.85,0,2*Math.PI); ctx.fillStyle=g.color===RED?RED_COLOR:BLACK_COLOR; ctx.fill(); ctx.strokeStyle='#ffe0b5'; ctx.lineWidth=3; ctx.stroke(); ctx.fillStyle='#fff'; ctx.font=`bold ${LINE_SPAN*0.5}px KaiTi`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('巨将',cx,cy); });
 
       for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
