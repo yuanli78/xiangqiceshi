@@ -1076,7 +1076,7 @@
           );
           if (attackedTianJiang) {
             attackedTianJiang.hp--;
-              if (attackedTianJiang.hp > 0 && !attackedTianJiang.isHalved) {
+            if (attackedTianJiang.hp > 0 && !attackedTianJiang.isHalved) {
               // 首次受伤：从两格变一格
               attackedTianJiang.isHalved = true;
               // 清掉天将的另一个格子（不是被攻击的那个）
@@ -1084,28 +1084,23 @@
               if (board[attackedTianJiang.row-ROW_MIN]?.[otherCol-COL_MIN]?.name === '天将' + attackedTianJiang.type) {
                 board[attackedTianJiang.row-ROW_MIN][otherCol-COL_MIN] = null;
               }
-              // 天将的左右列都设为被攻击的列（变为一格）
-              attackedTianJiang.rightCol = attackedTianJiang.leftCol;
-              // ⭐ 攻击棋子正常留在目标格（board 上已经放了攻击棋子 piece）
-              // ⭐ 天将也需要占据被攻击的格子（和攻击棋子同格，但优先显示天将的半血状态）
-              // 这里我们不做 board 覆盖，让攻击棋子留在目标格，天将只在 tianJiangs 数组中更新
-              // 半血天将在绘制时用标准圆形，覆盖在攻击棋子的格子上方
+              // 将天将的左右列都移到被攻击的列（变为一格）
+              attackedTianJiang.leftCol = move.toCol;
+              attackedTianJiang.rightCol = move.toCol;
+              // 攻击棋子正常留在目标格（已在board上），天将半血状态由tianJiangs绘制叠加
               log(`${attackedTianJiang.color===RED?'红':'黑'}方天将${attackedTianJiang.type}受创，缩为一格！`, 'warn');
-              // 不 return false，让吃子流程正常结束（把这步棋视为成功的攻击）
+              // 注意：不return false，让下面的countPieces()和返回true正常执行，完成吃子动作
             } else if (attackedTianJiang.hp <= 0) {
-              // 死亡
-             log(`${attackedTianJiang.color===RED?'红':'黑'}方天将${attackedTianJiang.type}被击杀！`, 'warn');
-             // 保留攻击棋子所在的格子不动，只清掉天将的另一个格子（如果存在）
-             if (attackedTianJiang.isHalved) {
-               // 半血状态，天将只占一个格子（就是攻击棋子所在的位置），不需要额外清理
-             } else {
-               // 正常状态，天将占两格，其中一格已被攻击棋子占据（move.toCol），清理另一格
-               const otherCol = (move.toCol === attackedTianJiang.leftCol) ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
-               if (board[attackedTianJiang.row-ROW_MIN]?.[otherCol-COL_MIN]) {
-                board[attackedTianJiang.row-ROW_MIN][otherCol-COL_MIN] = null;
+              // 死亡（彻底移除）
+              log(`${attackedTianJiang.color===RED?'红':'黑'}方天将${attackedTianJiang.type}被击杀！`, 'warn');
+              // 只清理天将的另一个格子（攻击棋子所在格已被攻击棋子占据，不动）
+              if (!attackedTianJiang.isHalved) {
+                const otherCol = (move.toCol === attackedTianJiang.leftCol) ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
+                if (board[attackedTianJiang.row-ROW_MIN]?.[otherCol-COL_MIN]) {
+                  board[attackedTianJiang.row-ROW_MIN][otherCol-COL_MIN] = null;
+                }
               }
-            }
-            tianJiangs.splice(tianJiangs.indexOf(attackedTianJiang), 1);
+              tianJiangs.splice(tianJiangs.indexOf(attackedTianJiang), 1);
             }
           }
         }
