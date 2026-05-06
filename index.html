@@ -501,27 +501,14 @@
          if (canPieceAttackCell(piece, ROW_MIN + r, COL_MIN + c, row, col)) return true;
        }
      }
-            for (const tj of tianJiangs) {
-        const cx=(getX(tj.leftCol)+getX(tj.rightCol))/2, cy=getY(tj.row);
-        if ((mx-cx)**2/(LINE_SPAN*1.0)**2+(my-cy)**2/(LINE_SPAN*0.55)**2<=1) {
-          // 已有选中的己方棋子，且点击的是敌方天将 → 尝试吃子
-          if (selectedPiece && tj.color !== currentPlayer) {
-            const move = generateMoves(currentPlayer).find(m => {
-              if (m.type === 'piece' && selectedPiece.type === 'board' && m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col && m.toRow === tj.row && (m.toCol === tj.leftCol || m.toCol === tj.rightCol)) return true;
-              if (m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' && m.tj === selectedPiece.tj && m.toRow === tj.row && m.toLeftCol === tj.leftCol) return true;
-              return false;
-            });
-            if (move) {
-              if (applyMove(move, currentPlayer)) {
-                currentPlayer = currentPlayer === RED ? BLACK : RED;
-                selectedPiece = null;
-                validMoves = [];
-                drawBoard();
-                statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
-                return;
-              }
-            }
-          }
+    // 检查天将
+    for (const tj of tianJiangs) {
+      if (tj.color !== attackerColor) continue;
+      const cells = tj.isHalved ? [{row: tj.row, col: tj.leftCol}] : [{row: tj.row, col: tj.leftCol}, {row: tj.row, col: tj.rightCol}];
+      for (const cell of cells) {
+        if (canTianJiangAttackCell(tj, cell.row, cell.col, row, col)) return true;
+      }
+    }
           // 正常选中/取消选中天将
           if (selectedPiece?.type === 'tianjiang' && selectedPiece.tj === tj) {
             selectedPiece = null; validMoves = []; drawBoard(); return;
