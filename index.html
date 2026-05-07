@@ -930,8 +930,12 @@
           if(['树'].includes(piece.name)) { if(dr!==0 && ((row<shore && nr<shore)||(row>shore && nr>shore))) continue; if(dc!==0 && ((col<1 && nc<1)||(col>1 && nc>1))) continue; }
           if(isInRiver(nr)) continue;
           const target=board[nr-ROW_MIN]?.[nc-COL_MIN];
+          // 检查目标格是否被敌方天将占据（天将不在 board 数组里）
+          const occupiedByOwnTianJiang = tianJiangs.some(tj => tj.color === color && tj.row === nr && (tj.leftCol === nc || tj.rightCol === nc));
+          const occupiedByEnemyTianJiang = tianJiangs.some(tj => tj.color === enemy && tj.row === nr && (tj.leftCol === nc || tj.rightCol === nc));
           if(target && target.color===color) continue;
-          let canEat = target && target.color === enemy;
+          if(occupiedByOwnTianJiang) continue; // 己方天将挡路，不能走
+          let canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
           if (piece.name !== '测试') {
              // 下面原有的所有 canEat 修改逻辑都保持不动
           if(['雷','军师','诏','政','截','日','月','卫','城','舞','美','借','调','牵','混','假','欲','无','关','上','空','走','狐','鬼','蛇','画','促','围','李','砖','柱','主','釜'].includes(piece.name)) canEat = false;
@@ -1090,8 +1094,9 @@
               // 将天将坐标缩到被攻击的格子
               attackedTianJiang.leftCol = move.toCol;
               attackedTianJiang.rightCol = move.toCol;
-              // 攻击棋子停留在目标格（不覆盖天将的 board 标识，天将由 tianJiangs 绘制层负责）
-              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null; // 离开原位
+              // 攻击棋子占据目标格，半血天将绘制在上面（视觉上可重叠）
+              board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
               // 目标格保留之前的状态（可能是空，也可能有天将标识），让天将绘制叠加
               log(`${attackedTianJiang.color === RED ? '红' : '黑'}方天将${attackedTianJiang.type}受创，缩为一格！`, 'warn');
               // 不 return false，让回合正常切换，攻击成功
