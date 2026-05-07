@@ -1083,20 +1083,22 @@
             attackedTianJiang.hp--;
 
             if (attackedTianJiang.hp > 0 && !attackedTianJiang.isHalved) {
-              // 首次受伤：退到未被攻击的另一格
               attackedTianJiang.isHalved = true;
-              const otherCol = (move.toCol === attackedTianJiang.leftCol)
-                ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
-              // 清除天将两格上的旧标识
+              // 计算受伤后应该退到的格子（不是被攻击的那一格）
+              const surviveCol = (move.toCol === attackedTianJiang.leftCol) 
+                ? attackedTianJiang.rightCol 
+                : attackedTianJiang.leftCol;
+              // 清除旧两格标识
               [attackedTianJiang.leftCol, attackedTianJiang.rightCol].forEach(col => {
-                if (board[attackedTianJiang.row - ROW_MIN]?.[col - COL_MIN]) {
-                  board[attackedTianJiang.row - ROW_MIN][col - COL_MIN] = null;
+                const idx = col - COL_MIN;
+                if (board[attackedTianJiang.row - ROW_MIN]?.[idx]) {
+                  board[attackedTianJiang.row - ROW_MIN][idx] = null;
                 }
               });
-              // 更新天将坐标（退到另一格）
-              attackedTianJiang.leftCol = otherCol;
-              attackedTianJiang.rightCol = otherCol;
-              // 攻击棋子留在被攻击的格子
+              // 天将坐标移到安全格
+              attackedTianJiang.leftCol = surviveCol;
+              attackedTianJiang.rightCol = surviveCol;
+              // 攻击棋子留在被攻击的格子（move.toCol）
               board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
               board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
               log(`${attackedTianJiang.color === RED ? '红' : '黑'}方天将${attackedTianJiang.type}受创，缩为一格！`, 'warn');
