@@ -1063,47 +1063,72 @@
             const ir=g.topLeftRow+dr-ROW_MIN, ic=g.topLeftCol+dc-COL_MIN;
             if(ir>=0&&ir<ROWS&&ic>=0&&ic<COLS){ const t=board[ir][ic]; if(t&&t.color!==color){ if(REVIVABLE_TYPES.includes(t.name)){ const p=t.color===BLACK?deadPoolBlack:deadPoolRed; p.push(t.name); } board[ir][ic]=null; } board[ir][ic]={name:'巨将',color}; }
           }
-        } else {
-          const piece=board[move.fromRow-ROW_MIN][move.fromCol-COL_MIN];
-          const target=board[move.toRow-ROW_MIN]?.[move.toCol-COL_MIN];
-          if(target&&target.color!==color){ if(REVIVABLE_TYPES.includes(target.name)){ const p=target.color===BLACK?deadPoolBlack:deadPoolRed; p.push(target.name); } }
-          board[move.toRow-ROW_MIN][move.toCol-COL_MIN]=piece;
-          board[move.fromRow-ROW_MIN][move.fromCol-COL_MIN]=null;
-                          // ========== 天将被吃处理（插入点） ==========
+                } else {
+          const piece = board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN];
+          const target = board[move.toRow - ROW_MIN]?.[move.toCol - COL_MIN];
+
+          // ★ 优先处理天将被攻击的情况（在天将被覆盖之前）
           const attackedTianJiang = tianJiangs.find(tj =>
-            tj.color === target.color &&
-            ((tj.row === move.toRow && tj.leftCol === move.toCol) || (tj.row === move.toRow && tj.rightCol === move.toCol))
+            tj.color !== color &&  // 敌方天将
+            ((tj.row === move.toRow && tj.leftCol === move.toCol) ||
+             (tj.row === move.toRow && tj.rightCol === move.toCol))
           );
+
           if (attackedTianJiang) {
+            // 攻击天将
             attackedTianJiang.hp--;
+
             if (attackedTianJiang.hp > 0 && !attackedTianJiang.isHalved) {
-              // 首次受伤：从两格变一格
+              // 首次受伤：从两格缩为一格
               attackedTianJiang.isHalved = true;
-              // 清掉天将的另一个格子（不是被攻击的那个）
-              const otherCol = (move.toCol === attackedTianJiang.leftCol) ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
-              if (board[attackedTianJiang.row-ROW_MIN]?.[otherCol-COL_MIN]?.name === '天将' + attackedTianJiang.type) {
-                board[attackedTianJiang.row-ROW_MIN][otherCol-COL_MIN] = null;
+              // 清掉天将的另一半格子
+              const otherCol = (move.toCol === attackedTianJiang.leftCol)
+                ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
+              if (board[attackedTianJiang.row - ROW_MIN]?.[otherCol - COL_MIN]?.name === '天将' + attackedTianJiang.type) {
+                board[attackedTianJiang.row - ROW_MIN][otherCol - COL_MIN] = null;
               }
-              // 将天将的左右列都移到被攻击的列（变为一格）
+              // 将天将坐标缩到被攻击的格子
               attackedTianJiang.leftCol = move.toCol;
               attackedTianJiang.rightCol = move.toCol;
-              // 攻击棋子正常留在目标格（已在board上），天将半血状态由tianJiangs绘制叠加
-              log(`${attackedTianJiang.color===RED?'红':'黑'}方天将${attackedTianJiang.type}受创，缩为一格！`, 'warn');
-              // 注意：不return false，让下面的countPieces()和返回true正常执行，完成吃子动作
+              // 攻击棋子停留在目标格（不覆盖天将的 board 标识，天将由 tianJiangs 绘制层负责）
+              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null; // 离开原位
+              // 目标格保留之前的状态（可能是空，也可能有天将标识），让天将绘制叠加
+              log(`${attackedTianJiang.color === RED ? '红' : '黑'}方天将${attackedTianJiang.type}受创，缩为一格！`, 'warn');
+              // 不 return false，让回合正常切换，攻击成功
+
             } else if (attackedTianJiang.hp <= 0) {
-              // 死亡（彻底移除）
-              log(`${attackedTianJiang.color===RED?'红':'黑'}方天将${attackedTianJiang.type}被击杀！`, 'warn');
-              // 只清理天将的另一个格子（攻击棋子所在格已被攻击棋子占据，不动）
+              // 天将死亡
+              log(`${attackedTianJiang.color === RED ? '红' : '黑'}方天将${attackedTianJiang.type}被击杀！`, 'warn');
+              // 清理天将的另一半格子（如果有）
               if (!attackedTianJiang.isHalved) {
-                const otherCol = (move.toCol === attackedTianJiang.leftCol) ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
-                if (board[attackedTianJiang.row-ROW_MIN]?.[otherCol-COL_MIN]) {
-                  board[attackedTianJiang.row-ROW_MIN][otherCol-COL_MIN] = null;
+                const otherCol = (move.toCol === attackedTianJiang.leftCol)
+                  ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
+                if (board[attackedTianJiang.row - ROW_MIN]?.[otherCol - COL_MIN]) {
+                  board[attackedTianJiang.row - ROW_MIN][otherCol - COL_MIN] = null;
                 }
               }
+              // 移除天将
               tianJiangs.splice(tianJiangs.indexOf(attackedTianJiang), 1);
+              // 攻击棋子正式占据目标格
+              board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
             }
+            // 如果半血天将又被攻击且 hp 仍大于 0（实际上不会出现，因为 hp 已为 1）
+            // 安全起见不做额外处理
+
+          } else {
+            // 没有攻击到天将，走原来的普通吃子流程
+            if (target && target.color !== color) {
+              if (REVIVABLE_TYPES.includes(target.name)) {
+                const p = target.color === BLACK ? deadPoolBlack : deadPoolRed;
+                p.push(target.name);
+              }
+            }
+            board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+            board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
           }
         }
+      }
             countPieces();
             if (checkGameEnd()) return true;
             return true;
