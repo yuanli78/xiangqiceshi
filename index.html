@@ -1265,8 +1265,13 @@
 
             // 天将点击处理：优先吃子，再选中
       for (const tj of tianJiangs) {
-        const cx=(getX(tj.leftCol)+getX(tj.rightCol))/2, cy=getY(tj.row);
-        if ((mx-cx)**2/(LINE_SPAN*1.0)**2+(my-cy)**2/(LINE_SPAN*0.55)**2<=1) {
+        const cx = (getX(tj.leftCol) + getX(tj.rightCol)) / 2;
+        const cy = getY(tj.row);
+        // 半血天将：用圆形碰撞检测，避免覆盖相邻格子
+        const hit = tj.isHalved
+          ? (mx - cx) ** 2 + (my - cy) ** 2 <= (LINE_SPAN * 0.38) ** 2
+          : (mx - cx) ** 2 / (LINE_SPAN * 1.0) ** 2 + (my - cy) ** 2 / (LINE_SPAN * 0.55) ** 2 <= 1;
+        if (hit) {
           // 已有选中的己方棋子，且点击的是敌方天将 → 尝试吃子
           if (selectedPiece && tj.color !== currentPlayer) {
             const move = generateMoves(currentPlayer).find(m => {
