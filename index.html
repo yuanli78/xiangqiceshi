@@ -1052,10 +1052,10 @@
                    board[c.row-ROW_MIN][c.col-COL_MIN] = { name: '天将' + t.type, color: color };
                 });
 
-                 // 更新天将坐标
+                 // 更新天将坐标（半血时保持单格）
                  t.row = newRow;
                  t.leftCol = newLeft;
-                 t.rightCol = newRight;
+                 t.rightCol = t.isHalved ? newLeft : newRight;
       } else if(move.type==='giant') {
           const g=move.giant;
           for(let dr=0; dr<2; dr++) for(let dc=0; dc<2; dc++) {
