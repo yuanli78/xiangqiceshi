@@ -461,13 +461,17 @@
     function checkGameEnd() {
       const redZhen = tianJiangs.find(t => t.type === '真' && t.color === RED);
       const blackZhen = tianJiangs.find(t => t.type === '真' && t.color === BLACK);
-
       if (!redZhen) return announceWinner(BLACK, '红方天将真被消灭');
       if (!blackZhen) return announceWinner(RED, '黑方天将真被消灭');
 
-      if (!tianJiangHasValidMove(redZhen, RED)) return announceWinner(BLACK, '红方天将真被将死');
-      if (!tianJiangHasValidMove(blackZhen, BLACK)) return announceWinner(RED, '黑方天将真被将死');
-
+      // 获取当前玩家的所有合法移动
+      const allMoves = generateMoves(currentPlayer);
+      if (allMoves.length === 0) {
+        const general = currentPlayer === RED ? redZhen : blackZhen;
+        if (!general) return false;
+        const inCheck = isTianJiangInCheck(general);
+        return announceWinner(currentPlayer === RED ? BLACK : RED, inCheck ? '将死' : '困毙');
+      }
       return false;
     }
 
@@ -732,6 +736,15 @@
           } else {
               // 标准走法：横竖一格
               offsets.push([-1,0],[1,0],[0,-1],[0,1]);
+              // 天将跨河跳跃（从河岸直接跳对岸）
+              const currentRow = currentCells[0].row;
+              if (!inCheck) {
+                if (color === BLACK && currentRow === 6) {
+                  offsets.push([4, 0]);
+                } else if (color === RED && currentRow === 10) {
+                  offsets.push([-4, 0]);
+                }
+              }
               // 壳棋存在或真将升级（大将）：士线一格
               if (shellAlive || (t.type === '真' && t.isUpgraded)) {
                   offsets.push([-1,-1],[-1,1],[1,-1],[1,1]);
