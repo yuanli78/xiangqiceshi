@@ -1267,7 +1267,7 @@
 
       // 天将点击处理：优先吃子，再选中
       for (const tj of tianJiangs) {
-        // 半血天将用圆形碰撞检测，正常天将用椭圆
+        // 半血用圆形碰撞，正常用椭圆碰撞
         const cx = (getX(tj.leftCol) + getX(tj.rightCol)) / 2;
         const cy = getY(tj.row);
         const hit = tj.isHalved
@@ -1277,18 +1277,22 @@
         if (hit) {
           // 已有选中的己方棋子，且点击的是敌方天将 → 尝试吃子
           if (selectedPiece && tj.color !== currentPlayer) {
+            // 判断鼠标点击的是天将的左半身还是右半身
+            const distLeft = Math.abs(mx - getX(tj.leftCol));
+            const distRight = Math.abs(mx - getX(tj.rightCol));
+            const targetCol = distLeft < distRight ? tj.leftCol : tj.rightCol;
+
             const moves = generateMoves(currentPlayer).filter(m => m.isEat);
             const move = moves.find(m => {
-              // 普通棋子吃天将
+              // 普通棋子吃天将：必须落点在用户点击的那一格上
               if (m.type === 'piece' && selectedPiece.type === 'board' &&
                   m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col &&
-                  m.toRow === tj.row && (m.toCol === tj.leftCol || m.toCol === tj.rightCol)) {
-                // 确保目标格确实属于这个天将
-                return (tj.leftCol === m.toCol || tj.rightCol === m.toCol);
+                  m.toRow === tj.row && m.toCol === targetCol) {
+                return true;
               }
               // 天将吃天将
               if (m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' &&
-                  m.tj === selectedPiece.tj && m.toRow === tj.row && m.toLeftCol === tj.leftCol) {
+                  m.tj === selectedPiece.tj && m.toRow === tj.row && m.toLeftCol === targetCol) {
                 return true;
               }
               return false;
