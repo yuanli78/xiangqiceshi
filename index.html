@@ -778,10 +778,13 @@
               // 河界检查（天将不可入河）
               if (newCells.some(c => isInRiver(c.row))) continue;
         
-              // 是否被己方棋子占据
+              // 是否被己方棋子占据（排除天将自身的另一格）
               if (newCells.some(c => {
-                  const p = board[c.row-ROW_MIN]?.[c.col-COL_MIN];
-                  return p && p.color === color;
+                  const p = board[c.row - ROW_MIN]?.[c.col - COL_MIN];
+                  if (!p || p.color !== color) return false;
+                  // 如果棋子是天将自己（旧位置），允许通过
+                  const isOwnBody = tianJiangs.some(otj => otj === t && otj.row === c.row && (otj.leftCol === c.col || otj.rightCol === c.col));
+                  return !isOwnBody;
               })) continue;
         
               // 判断是“走两格/日字/隔子跳”中的哪一种
@@ -1332,7 +1335,7 @@
 
         if (!hit) continue;
 
-                 // 已有选中的棋子，且点击的是敌方天将 → 只处理天将吃天将（普通棋子吃天将已在前面处理）
+        // 已有选中的棋子，且点击的是敌方天将 → 只处理天将吃天将（普通棋子吃天将已在前面处理）
         if (selectedPiece && tj.color !== currentPlayer) {
           const move = generateMoves(currentPlayer).find(m => 
             m.isEat && m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' && 
