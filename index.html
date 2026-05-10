@@ -1337,7 +1337,7 @@
       if (selectedPiece && piece && piece.color !== currentPlayer && piece.name !== '巨将'){
         const move = generateMoves(currentPlayer).find(m => {
           if (m.type === 'piece' && selectedPiece.type === 'board' && m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col && m.toRow === logicRow && m.toCol === logicCol) return true;
-          if (m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' && m.tj === selectedPiece.tj && m.toRow === logicRow && m.toLeftCol === logicCol) return true;
+          if (m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' && m.tj === selectedPiece.tj && m.toRow === logicRow && (m.toLeftCol === logicCol || (!selectedPiece.tj.isHalved && m.toLeftCol + 1 === logicCol))) return true;
           if (m.type === 'giant' && selectedPiece.type === 'giant' && m.giant.topLeftRow === selectedPiece.topLeftRow && m.giant.topLeftCol === selectedPiece.topLeftCol && m.toRow === logicRow && m.toCol === logicCol) return true;
           if (m.type === 'stackedDancer' && selectedPiece.type === 'stackedDancer' && m.dancer === selectedPiece.dancer && m.toRow === logicRow && m.toCol === logicCol) return true;
           return false;
@@ -1363,7 +1363,7 @@
       if(selectedPiece && !piece) {
         const move = generateMoves(currentPlayer).find(m=>{
           if(m.type==='piece'&&m.fromRow===selectedPiece.row&&m.fromCol===selectedPiece.col&&m.toRow===logicRow&&m.toCol===logicCol) return true;
-          if(m.type==='tianjiang'&&selectedPiece.type==='tianjiang'&&m.tj===selectedPiece.tj&&m.toRow===logicRow&&m.toLeftCol===logicCol) return true;
+          if(m.type==='tianjiang'&&selectedPiece.type==='tianjiang'&&m.tj===selectedPiece.tj&&m.toRow===logicRow&&(m.toLeftCol===logicCol||(!selectedPiece.tj.isHalved&&m.toLeftCol+1===logicCol))) return true;
           if(m.type==='giant'&&selectedPiece.type==='giant'&&m.giant.topLeftRow===selectedPiece.topLeftRow&&m.giant.topLeftCol===selectedPiece.topLeftCol&&m.toRow===logicRow&&m.toCol===logicCol) return true;
           if(m.type==='stackedDancer'&&selectedPiece.type==='stackedDancer'&&m.dancer===selectedPiece.dancer&&m.toRow===logicRow&&m.toCol===logicCol) return true;
           return false;
