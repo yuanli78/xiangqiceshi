@@ -1311,7 +1311,7 @@
             }
             if (m.type === 'giant' && selectedPiece.type === 'giant' &&
                 m.giant.topLeftRow === selectedPiece.topLeftRow && m.giant.topLeftCol === selectedPiece.topLeftCol &&
-                m.toRow === tj.row && (m.toCol === targetCol || m.toCol === targetCol + 1)) { // 巨将覆盖多格，暂简单处理
+                m.toRow === tj.row && (m.toCol === targetCol || m.toCol === targetCol + 1)) {
               return true;
             }
             return false;
@@ -1346,7 +1346,6 @@
         }
         drawBoard();
         return;
-        }
       }
       for (const g of giants) { const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if ((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2) { selectedPiece={type:'giant', topLeftRow:g.topLeftRow, topLeftCol:g.topLeftCol, color:g.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='giant'&&m.giant.topLeftRow===g.topLeftRow&&m.giant.topLeftCol===g.topLeftCol).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
       for (const d of stackedDancers) { if(d.row===logicRow && d.col===logicCol) { selectedPiece={type:'stackedDancer', dancer:d, color:d.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='stackedDancer'&&m.dancer===d).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
