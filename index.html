@@ -736,15 +736,17 @@
           } else {
               // 标准走法：横竖一格
               offsets.push([-1,0],[1,0],[0,-1],[0,1]);
-              // 天将跨河跳跃（从河岸直接跳对岸）
-              const currentRow = currentCells[0].row;
-              if (!inCheck) {
-                if (color === BLACK && currentRow === 6) {
-                  offsets.push([4, 0]);
-                } else if (color === RED && currentRow === 10) {
-                  offsets.push([-4, 0]);
-                }
-              }
+          // 天将跨河跳跃（从河岸直接跳对岸）
+          if (!inCheck) {
+            const cr = currentCells[0].row;
+            if (color === BLACK) {
+              if (cr === 6) offsets.push([4, 0]);
+              else if (cr === 7) offsets.push([3, 0]);
+            } else if (color === RED) {
+              if (cr === 10) offsets.push([-4, 0]);
+              else if (cr === 11) offsets.push([-4, 0]);   // 行11→行7
+            }
+          }
               // 壳棋存在或真将升级（大将）：士线一格
               if (shellAlive || (t.type === '真' && t.isUpgraded)) {
                   offsets.push([-1,-1],[-1,1],[1,-1],[1,1]);
@@ -1326,8 +1328,13 @@
             selectedPiece = null; validMoves = []; drawBoard(); return;
           }
           selectedPiece = { type:'tianjiang', tj, color:tj.color };
-          validMoves = generateMoves(currentPlayer).filter(m => m.type === 'tianjiang' && m.tj === tj).map(m => ({ row: m.toRow, col: m.toLeftCol }));
-          drawBoard(); return;
+          const tjMoves = generateMoves(currentPlayer).filter(m => m.type === 'tianjiang' && m.tj === tj);
+          const highlightCells = [];
+          tjMoves.forEach(m => {
+            highlightCells.push({ row: m.toRow, col: m.toLeftCol });
+            if (!tj.isHalved) highlightCells.push({ row: m.toRow, col: m.toLeftCol + 1 }); // 右格也高亮
+          });
+          validMoves = highlightCells;
         }
       }
       for (const g of giants) { const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if ((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2) { selectedPiece={type:'giant', topLeftRow:g.topLeftRow, topLeftCol:g.topLeftCol, color:g.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='giant'&&m.giant.topLeftRow===g.topLeftRow&&m.giant.topLeftCol===g.topLeftCol).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
