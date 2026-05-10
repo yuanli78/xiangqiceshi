@@ -1296,7 +1296,7 @@
           : (mx - cx) ** 2 / (LINE_SPAN * 1.0) ** 2 + (my - cy) ** 2 / (LINE_SPAN * 0.55) ** 2 <= 1;
 
         if (!hit) continue;
-
+        // 已有选中的己方棋子，且点击的是敌方天将 → 尝试吃子
         if (selectedPiece && tj.color !== currentPlayer) {
           // 判断实际被攻击的列（可能是天将的一格，或者点击的普通棋子）
           let targetCol;
