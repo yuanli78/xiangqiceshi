@@ -1296,22 +1296,27 @@
 
         if (!hit) continue;
 
+        // ★ 如果是敌方天将，直接跳过，让后面的通用吃子/选中逻辑处理
+        if (tj.color !== currentPlayer) {
+          continue;
+        }
+
+        // 以下只处理己方天将的选中/取消/显示合法位置
+
         // 正常选中/取消选中天将
         if (selectedPiece?.type === 'tianjiang' && selectedPiece.tj === tj) {
           selectedPiece = null; validMoves = []; drawBoard(); return;
         }
 
         // 选中己方天将，显示合法位置
-        if (tj.color === currentPlayer) {
-          selectedPiece = { type:'tianjiang', tj, color:tj.color };
-          const tjMoves = generateMoves(currentPlayer).filter(m => m.type === 'tianjiang' && m.tj === tj);
-          const cells = [];
-          tjMoves.forEach(m => {
-            cells.push({ row: m.toRow, col: m.toLeftCol });
-            if (!tj.isHalved) cells.push({ row: m.toRow, col: m.toLeftCol + 1 });
-          });
-          validMoves = cells;
-        }
+        selectedPiece = { type:'tianjiang', tj, color:tj.color };
+        const tjMoves = generateMoves(currentPlayer).filter(m => m.type === 'tianjiang' && m.tj === tj);
+        const cells = [];
+        tjMoves.forEach(m => {
+          cells.push({ row: m.toRow, col: m.toLeftCol });
+          if (!tj.isHalved) cells.push({ row: m.toRow, col: m.toLeftCol + 1 });
+        });
+        validMoves = cells;
         drawBoard();
         return;
       }
