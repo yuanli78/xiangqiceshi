@@ -1286,30 +1286,29 @@
       
       for (const g of giants) { const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if ((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2) { selectedPiece={type:'giant', topLeftRow:g.topLeftRow, topLeftCol:g.topLeftCol, color:g.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='giant'&&m.giant.topLeftRow===g.topLeftRow&&m.giant.topLeftCol===g.topLeftCol).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
       for (const d of stackedDancers) { if(d.row===logicRow && d.col===logicCol) { selectedPiece={type:'stackedDancer', dancer:d, color:d.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='stackedDancer'&&m.dancer===d).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
-      // 天将点击处理：优先吃子，再选中
+      // 天将点击交互（不拦截吃子，只负责选中/取消己方天将）
       for (const tj of tianJiangs) {
+        // 跳过敌方天将，让通用逻辑处理一切吃子
+        if (tj.color !== currentPlayer) continue;
+
+        // 半血用圆形碰撞，正常用椭圆碰撞
         const cx = (getX(tj.leftCol) + getX(tj.rightCol)) / 2;
         const cy = getY(tj.row);
         const hit = tj.isHalved
           ? (mx - cx) ** 2 + (my - cy) ** 2 <= (LINE_SPAN * 0.38) ** 2
           : (mx - cx) ** 2 / (LINE_SPAN * 1.0) ** 2 + (my - cy) ** 2 / (LINE_SPAN * 0.55) ** 2 <= 1;
-
         if (!hit) continue;
 
-        // ★ 如果是敌方天将，直接跳过，让后面的通用吃子/选中逻辑处理
-        if (tj.color !== currentPlayer) {
-          continue;
-        }
-
-        // 以下只处理己方天将的选中/取消/显示合法位置
-
-        // 正常选中/取消选中天将
+        // 正常选中/取消选中己方天将
         if (selectedPiece?.type === 'tianjiang' && selectedPiece.tj === tj) {
-          selectedPiece = null; validMoves = []; drawBoard(); return;
+          selectedPiece = null;
+          validMoves = [];
+          drawBoard();
+          return;
         }
 
-        // 选中己方天将，显示合法位置
-        selectedPiece = { type:'tianjiang', tj, color:tj.color };
+        // 选中己方天将，显示合法移动位置（包含左右两格）
+        selectedPiece = { type: 'tianjiang', tj, color: tj.color };
         const tjMoves = generateMoves(currentPlayer).filter(m => m.type === 'tianjiang' && m.tj === tj);
         const cells = [];
         tjMoves.forEach(m => {
