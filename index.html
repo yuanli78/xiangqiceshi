@@ -1332,13 +1332,15 @@
         selectedPiece={type:'board', row:logicRow, col:logicCol, color:piece.color};
         validMoves=generateMoves(currentPlayer).filter(m=>m.type==='piece'&&m.fromRow===logicRow&&m.fromCol===logicCol).map(m=>({row:m.toRow,col:m.toCol}));
 
-        // 计算危险移动点
+       // 计算危险移动点（修复版：保存并恢复目标格棋子）
         dangerMoves = [];
         const testPiece = board[logicRow-ROW_MIN]?.[logicCol-COL_MIN];
         if (testPiece) {
           const savedBoard = board[logicRow-ROW_MIN][logicCol-COL_MIN];
           for (const mv of validMoves) {
-            // 临时移动棋子
+            // 保存目标格上的原棋子（可能为 null）
+            const targetPiece = board[mv.row-ROW_MIN]?.[mv.col-COL_MIN];
+            // 模拟移动：清除原位，将棋子放到目标格
             board[logicRow-ROW_MIN][logicCol-COL_MIN] = null;
             board[mv.row-ROW_MIN][mv.col-COL_MIN] = testPiece;
             // 检查是否被敌方攻击
@@ -1366,8 +1368,8 @@
               }
             }
             if (underAttack) dangerMoves.push(mv);
-            // 恢复棋盘
-            board[mv.row-ROW_MIN][mv.col-COL_MIN] = null;
+            // 恢复：清掉目标格，放回目标格原棋子，恢复原位
+            board[mv.row-ROW_MIN][mv.col-COL_MIN] = targetPiece;
             board[logicRow-ROW_MIN][logicCol-COL_MIN] = savedBoard;
           }
         }
