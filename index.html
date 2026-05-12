@@ -1164,7 +1164,6 @@
             countPieces();
             if (checkGameEnd()) return true;
             return true;
-          }   // ← 新增这一行！结束 else (普通棋子移动)
         }     // ← 这一行是原来 else 的闭合，保持不变
       }       // ← 这一行是 try 块的闭合，保持不变
       catch(e) { log(`❌ 走法异常: ${e.message}`, 'error'); return false; }
