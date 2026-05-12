@@ -1390,7 +1390,6 @@
       } 
       // 天将点击处理（放在最后，不拦截吃子）
       for (const tj of tianJiangs) {
-        // 半血用圆形碰撞，正常用椭圆碰撞
         const cx = (getX(tj.leftCol) + getX(tj.rightCol)) / 2;
         const cy = getY(tj.row);
         const hit = tj.isHalved
@@ -1398,15 +1397,15 @@
           : (mx - cx) ** 2 / (LINE_SPAN * 1.0) ** 2 + (my - cy) ** 2 / (LINE_SPAN * 0.55) ** 2 <= 1;
         if (!hit) continue;
 
-        // 敌方天将不处理，交给前面的通用吃子分支
+        // 敌方天将不处理
         if (tj.color !== currentPlayer) continue;
 
         // 正常选中/取消选中己方天将
         if (selectedPiece?.type === 'tianjiang' && selectedPiece.tj === tj) {
-          selectedPiece = null; validMoves = []; drawBoard(); return;
+          selectedPiece = null; validMoves = []; dangerMoves = []; drawBoard(); return;
         }
 
-        // 选中己方天将，显示合法移动位置
+        // 选中己方天将，显示合法移动位置和危险点
         selectedPiece = { type: 'tianjiang', tj, color: tj.color };
         const tjMoves = generateMoves(currentPlayer).filter(m => m.type === 'tianjiang' && m.tj === tj);
         const cells = [];
@@ -1425,7 +1424,6 @@
             tj.row = mv.row; tj.leftCol = mv.col; tj.rightCol = tj.isHalved ? mv.col : mv.col + 1;
             const enemyColor = currentPlayer === RED ? BLACK : RED;
             let underAttack = false;
-            // 检查普通棋子能否攻击天将任一格
             for (let r = 0; r < ROWS && !underAttack; r++) {
               for (let c = 0; c < COLS && !underAttack; c++) {
                 const ep = board[r][c];
@@ -1435,7 +1433,6 @@
                 }
               }
             }
-            // 检查敌方天将
             if (!underAttack) {
               for (const etj of tianJiangs) {
                 if (etj.color === enemyColor) {
@@ -1449,10 +1446,8 @@
             }
             if (underAttack) dangerMoves.push(mv);
           }
-          // 恢复天将状态
           tj.row = savedRow; tj.leftCol = savedLeft; tj.rightCol = savedRight; tj.isHalved = savedHalved;
         }
-
         drawBoard();
         return;
       }
