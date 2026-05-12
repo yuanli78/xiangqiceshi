@@ -1024,64 +1024,62 @@
           if(idx > -1) stackedDancers.splice(idx, 1);
           countPieces(); return true;
         }
-              if (move.type === 'tianjiang') {
-                  const t = move.tj;
-                  const oldRow = t.row, oldLeft = t.leftCol, oldRight = t.rightCol;
-                  const enemy = color === RED ? BLACK : RED;
+        if (move.type === 'tianjiang') {
+          const t = move.tj;
+          const oldRow = t.row, oldLeft = t.leftCol, oldRight = t.rightCol;
+          const enemy = color === RED ? BLACK : RED;
 
-                  // 彻底清理旧位置（不管格子上有什么，只要是天将自己就清掉）
-                  if (t.isHalved) {
-                      // 半血状态：只占一格
-                      if (board[oldRow-ROW_MIN]?.[oldLeft-COL_MIN]) {
-                          board[oldRow-ROW_MIN][oldLeft-COL_MIN] = null;
-                      }
-                  } else {
-                      // 正常状态：占两格
-                      if (board[oldRow-ROW_MIN]?.[oldLeft-COL_MIN]?.name?.startsWith('天将')) {
-                          board[oldRow-ROW_MIN][oldLeft-COL_MIN] = null;
-                      }
-                      if (board[oldRow-ROW_MIN]?.[oldRight-COL_MIN]?.name?.startsWith('天将')) {
-                          board[oldRow-ROW_MIN][oldRight-COL_MIN] = null;
-                      }
-                  }
+          // 彻底清理旧位置
+          if (t.isHalved) {
+            if (board[oldRow-ROW_MIN]?.[oldLeft-COL_MIN]) {
+              board[oldRow-ROW_MIN][oldLeft-COL_MIN] = null;
+            }
+          } else {
+            if (board[oldRow-ROW_MIN]?.[oldLeft-COL_MIN]?.name?.startsWith('天将')) {
+              board[oldRow-ROW_MIN][oldLeft-COL_MIN] = null;
+            }
+            if (board[oldRow-ROW_MIN]?.[oldRight-COL_MIN]?.name?.startsWith('天将')) {
+              board[oldRow-ROW_MIN][oldRight-COL_MIN] = null;
+            }
+          }
 
-                  // 新位置
-                  const newRow = move.toRow;
-                  const newLeft = move.toLeftCol;
-                  const newRight = newLeft + 1;
-                  const newCells = t.isHalved 
-                      ? [{row: newRow, col: newLeft}] 
-                      : [{row: newRow, col: newLeft}, {row: newRow, col: newRight}];
+          // 新位置
+          const newRow = move.toRow;
+          const newLeft = move.toLeftCol;
+          const newRight = newLeft + 1;
+          const newCells = t.isHalved 
+            ? [{row: newRow, col: newLeft}] 
+            : [{row: newRow, col: newLeft}, {row: newRow, col: newRight}];
 
-                  // 吃子处理
-                  if (move.isEat) {
-                      newCells.forEach(c => {
-                          const target = board[c.row-ROW_MIN]?.[c.col-COL_MIN];
-                          if (target && target.color === enemy) {
-                              if (REVIVABLE_TYPES.includes(target.name)) {
-                                  const pool = target.color === BLACK ? deadPoolBlack : deadPoolRed;
-                                  pool.push(target.name);
-                              }
-                              board[c.row-ROW_MIN][c.col-COL_MIN] = null;
-                          }
-                      });
-                      // 真将首次吃子升级
-                      if (t.type === '真' && !t.isUpgraded) {
-                          t.isUpgraded = true;
-                          log(`⚡ 天将真首次吃子，升级为大将！`, 'info');
-                      }
+          // 吃子处理
+          if (move.isEat) {
+            newCells.forEach(c => {
+              const target = board[c.row-ROW_MIN]?.[c.col-COL_MIN];
+              if (target && target.color === enemy) {
+                if (REVIVABLE_TYPES.includes(target.name)) {
+                  const pool = target.color === BLACK ? deadPoolBlack : deadPoolRed;
+                  pool.push(target.name);
                 }
+                board[c.row-ROW_MIN][c.col-COL_MIN] = null;
+              }
+            });
+            // 真将首次吃子升级
+            if (t.type === '真' && !t.isUpgraded) {
+              t.isUpgraded = true;
+              log(`⚡ 天将真首次吃子，升级为大将！`, 'info');
+            }
+          }
 
-                // 放置天将到新位置
-                newCells.forEach(c => {
-                   board[c.row-ROW_MIN][c.col-COL_MIN] = { name: '天将' + t.type, color: color };
-                });
+          // 放置天将到新位置
+          newCells.forEach(c => {
+            board[c.row-ROW_MIN][c.col-COL_MIN] = { name: '天将' + t.type, color: color };
+          });
 
-                 // 更新天将坐标（半血时保持单格）
-                 t.row = newRow;
-                 t.leftCol = newLeft;
-                 t.rightCol = t.isHalved ? newLeft : newRight;
-      } else if(move.type==='giant') {
+          // 更新天将坐标（半血时保持单格）
+          t.row = newRow;
+          t.leftCol = newLeft;
+          t.rightCol = t.isHalved ? newLeft : newRight;
+        } else if(move.type==='giant') {
           const g=move.giant;
           for(let dr=0; dr<2; dr++) for(let dc=0; dc<2; dc++) {
             const ir=g.topLeftRow+dr-ROW_MIN, ic=g.topLeftCol+dc-COL_MIN;
@@ -1092,28 +1090,26 @@
             const ir=g.topLeftRow+dr-ROW_MIN, ic=g.topLeftCol+dc-COL_MIN;
             if(ir>=0&&ir<ROWS&&ic>=0&&ic<COLS){ const t=board[ir][ic]; if(t&&t.color!==color){ if(REVIVABLE_TYPES.includes(t.name)){ const p=t.color===BLACK?deadPoolBlack:deadPoolRed; p.push(t.name); } board[ir][ic]=null; } board[ir][ic]={name:'巨将',color}; }
           }
-                } else {
+        } else {
           const piece = board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN];
           const target = board[move.toRow - ROW_MIN]?.[move.toCol - COL_MIN];
 
-          // ★ 优先处理天将被攻击的情况（在天将被覆盖之前）
+          // ★ 优先处理天将被攻击的情况
           const attackedTianJiang = tianJiangs.find(tj =>
-            tj.color !== color &&  // 敌方天将
+            tj.color !== color &&
             ((tj.row === move.toRow && tj.leftCol === move.toCol) ||
              (tj.row === move.toRow && tj.rightCol === move.toCol))
           );
 
           if (attackedTianJiang) {
-            // 攻击天将
             attackedTianJiang.hp--;
 
-          if (attackedTianJiang.hp > 0 && !attackedTianJiang.isHalved) {
+            if (attackedTianJiang.hp > 0 && !attackedTianJiang.isHalved) {
               // 半血：退到未被攻击的另一格
               attackedTianJiang.isHalved = true;
               const surviveCol = (move.toCol === attackedTianJiang.leftCol)
                 ? attackedTianJiang.rightCol
                 : attackedTianJiang.leftCol;
-              // 彻底清掉天将的两个旧格（防止 board 残留）
               const oldL = attackedTianJiang.leftCol, oldR = attackedTianJiang.rightCol;
               if (board[attackedTianJiang.row - ROW_MIN]?.[oldL - COL_MIN]) {
                 board[attackedTianJiang.row - ROW_MIN][oldL - COL_MIN] = null;
@@ -1121,18 +1117,13 @@
               if (board[attackedTianJiang.row - ROW_MIN]?.[oldR - COL_MIN]) {
                 board[attackedTianJiang.row - ROW_MIN][oldR - COL_MIN] = null;
               }
-              // 更新天将坐标到安全格
               attackedTianJiang.leftCol = surviveCol;
               attackedTianJiang.rightCol = surviveCol;
-              // 攻击棋子稳稳地留在被攻击的格子（move.toCol）
               board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
               board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
               log(`${attackedTianJiang.color === RED ? '红' : '黑'}方天将${attackedTianJiang.type}受创，缩为一格！`, 'warn');
-              // 不 return false，让回合正常切换，攻击成功
             } else if (attackedTianJiang.hp <= 0) {
-              // 天将死亡
               log(`${attackedTianJiang.color === RED ? '红' : '黑'}方天将${attackedTianJiang.type}被击杀！`, 'warn');
-              // 清理天将的另一半格子（如果有）
               if (!attackedTianJiang.isHalved) {
                 const otherCol = (move.toCol === attackedTianJiang.leftCol)
                   ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
@@ -1140,17 +1131,12 @@
                   board[attackedTianJiang.row - ROW_MIN][otherCol - COL_MIN] = null;
                 }
               }
-              // 移除天将
               tianJiangs.splice(tianJiangs.indexOf(attackedTianJiang), 1);
-              // 攻击棋子正式占据目标格
               board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
               board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
             }
-            // 如果半血天将又被攻击且 hp 仍大于 0（实际上不会出现，因为 hp 已为 1）
-            // 安全起见不做额外处理
-
           } else {
-            // 没有攻击到天将，走原来的普通吃子流程
+            // 普通吃子
             if (target && target.color !== color) {
               if (REVIVABLE_TYPES.includes(target.name)) {
                 const p = target.color === BLACK ? deadPoolBlack : deadPoolRed;
@@ -1161,12 +1147,10 @@
             board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
           }
         }
-            countPieces();
-            if (checkGameEnd()) return true;
-            return true;
-        }     // ← 这一行是原来 else 的闭合，保持不变
-      }       // ← 这一行是 try 块的闭合，保持不变
-      catch(e) { log(`❌ 走法异常: ${e.message}`, 'error'); return false; }
+        countPieces();
+        if (checkGameEnd()) return true;
+        return true;
+      } catch(e) { log(`❌ 走法异常: ${e.message}`, 'error'); return false; }
     }
     function autoStep() {
       if(!autoRunning) return;
