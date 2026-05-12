@@ -1302,10 +1302,11 @@
       const logicCol = Math.round((mx-PADDING)/LINE_SPAN+COL_MIN), logicRow = Math.round((my-PADDING)/LINE_SPAN+ROW_MIN);
       if (logicRow<ROW_MIN||logicRow>ROW_MAX||logicCol<COL_MIN||logicCol>COL_MAX) return;
 
-      
-      for (const g of giants) { const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if ((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2) { selectedPiece={type:'giant', topLeftRow:g.topLeftRow, topLeftCol:g.topLeftCol, color:g.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='giant'&&m.giant.topLeftRow===g.topLeftRow&&m.giant.topLeftCol===g.topLeftCol).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
-      for (const d of stackedDancers) { if(d.row===logicRow && d.col===logicCol) { selectedPiece={type:'stackedDancer', dancer:d, color:d.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='stackedDancer'&&m.dancer===d).map(m=>({row:m.toRow,col:m.toCol})); drawBoard(); return; } }
-      
+      // 巨将选择
+      for (const g of giants) { const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if ((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2) { selectedPiece={type:'giant', topLeftRow:g.topLeftRow, topLeftCol:g.topLeftCol, color:g.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='giant'&&m.giant.topLeftRow===g.topLeftRow&&m.giant.topLeftCol===g.topLeftCol).map(m=>({row:m.toRow,col:m.toCol})); dangerMoves=[]; drawBoard(); return; } }
+      // 叠舞选择
+      for (const d of stackedDancers) { if(d.row===logicRow && d.col===logicCol) { selectedPiece={type:'stackedDancer', dancer:d, color:d.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='stackedDancer'&&m.dancer===d).map(m=>({row:m.toRow,col:m.toCol})); dangerMoves=[]; drawBoard(); return; } }
+
       const r=logicRow-ROW_MIN, c=logicCol-COL_MIN; const piece=board[r]?.[c];
       // 如果已选中己方棋子，且点击的是敌方棋子，优先尝试吃子移动
       if (selectedPiece && piece && piece.color !== currentPlayer && piece.name !== '巨将'){
@@ -1321,6 +1322,7 @@
             currentPlayer = currentPlayer === RED ? BLACK : RED;
             selectedPiece = null;
             validMoves = [];
+            dangerMoves = [];
             drawBoard();
             statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
             return;
@@ -1328,23 +1330,21 @@
         }
       }
 
+      // 点击普通己方棋子（非天将），选中并计算危险点
       if(piece && piece.name!=='巨将'&& !piece.name.startsWith('天将')) { 
-        if(selectedPiece?.type==='board'&&selectedPiece.row===logicRow&&selectedPiece.col===logicCol) {selectedPiece=null; validMoves=[]; drawBoard(); return;} 
+        if(selectedPiece?.type==='board'&&selectedPiece.row===logicRow&&selectedPiece.col===logicCol) {selectedPiece=null; validMoves=[]; dangerMoves=[]; drawBoard(); return;} 
         selectedPiece={type:'board', row:logicRow, col:logicCol, color:piece.color};
         validMoves=generateMoves(currentPlayer).filter(m=>m.type==='piece'&&m.fromRow===logicRow&&m.fromCol===logicCol).map(m=>({row:m.toRow,col:m.toCol}));
 
-       // 计算危险移动点（修复版：保存并恢复目标格棋子）
+        // 计算危险移动点（保存并恢复目标格棋子）
         dangerMoves = [];
         const testPiece = board[logicRow-ROW_MIN]?.[logicCol-COL_MIN];
         if (testPiece) {
           const savedBoard = board[logicRow-ROW_MIN][logicCol-COL_MIN];
           for (const mv of validMoves) {
-            // 保存目标格上的原棋子（可能为 null）
             const targetPiece = board[mv.row-ROW_MIN]?.[mv.col-COL_MIN];
-            // 模拟移动：清除原位，将棋子放到目标格
             board[logicRow-ROW_MIN][logicCol-COL_MIN] = null;
             board[mv.row-ROW_MIN][mv.col-COL_MIN] = testPiece;
-            // 检查是否被敌方攻击
             const enemyColor = currentPlayer === RED ? BLACK : RED;
             let underAttack = false;
             for (let ri = 0; ri < ROWS && !underAttack; ri++) {
@@ -1357,7 +1357,6 @@
                 }
               }
             }
-            // 检查敌方天将
             if (!underAttack) {
               for (const etj of tianJiangs) {
                 if (etj.color === enemyColor) {
@@ -1369,14 +1368,14 @@
               }
             }
             if (underAttack) dangerMoves.push(mv);
-            // 恢复：清掉目标格，放回目标格原棋子，恢复原位
             board[mv.row-ROW_MIN][mv.col-COL_MIN] = targetPiece;
             board[logicRow-ROW_MIN][logicCol-COL_MIN] = savedBoard;
           }
         }
-
         drawBoard(); return; 
       }
+
+      // 点击空格移动
       if(selectedPiece && !piece) {
         const move = generateMoves(currentPlayer).find(m=>{
           if(m.type==='piece'&&m.fromRow===selectedPiece.row&&m.fromCol===selectedPiece.col&&m.toRow===logicRow&&m.toCol===logicCol) return true;
@@ -1385,8 +1384,9 @@
           if(m.type==='stackedDancer'&&selectedPiece.type==='stackedDancer'&&m.dancer===selectedPiece.dancer&&m.toRow===logicRow&&m.toCol===logicCol) return true;
           return false;
         });
-        if(move) { applyMove(move, currentPlayer); currentPlayer = currentPlayer===RED?BLACK:RED; selectedPiece=null; validMoves=[]; drawBoard(); statusBar.textContent=`手动移动完成，轮到${currentPlayer==='red'?'红':'黑'}方`; return; }
+        if(move) { applyMove(move, currentPlayer); currentPlayer = currentPlayer===RED?BLACK:RED; selectedPiece=null; validMoves=[]; dangerMoves=[]; drawBoard(); statusBar.textContent=`手动移动完成，轮到${currentPlayer==='red'?'红':'黑'}方`; return; }
       } 
+
       // 天将点击处理（放在最后，不拦截吃子）
       for (const tj of tianJiangs) {
         const cx = (getX(tj.leftCol) + getX(tj.rightCol)) / 2;
@@ -1396,7 +1396,7 @@
           : (mx - cx) ** 2 / (LINE_SPAN * 1.0) ** 2 + (my - cy) ** 2 / (LINE_SPAN * 0.55) ** 2 <= 1;
         if (!hit) continue;
 
-        // 敌方天将不处理
+        // 敌方天将不处理，交给前面的通用吃子分支
         if (tj.color !== currentPlayer) continue;
 
         // 正常选中/取消选中己方天将
@@ -1404,7 +1404,7 @@
           selectedPiece = null; validMoves = []; dangerMoves = []; drawBoard(); return;
         }
 
-        // 选中己方天将，显示合法移动位置和危险点
+        // 选中己方天将，显示合法移动位置
         selectedPiece = { type: 'tianjiang', tj, color: tj.color };
         const tjMoves = generateMoves(currentPlayer).filter(m => m.type === 'tianjiang' && m.tj === tj);
         const cells = [];
@@ -1419,7 +1419,6 @@
         if (tj.color === currentPlayer) {
           const savedLeft = tj.leftCol, savedRight = tj.rightCol, savedRow = tj.row, savedHalved = tj.isHalved;
           for (const mv of validMoves) {
-            // 模拟天将移动
             tj.row = mv.row; tj.leftCol = mv.col; tj.rightCol = tj.isHalved ? mv.col : mv.col + 1;
             const enemyColor = currentPlayer === RED ? BLACK : RED;
             let underAttack = false;
@@ -1447,10 +1446,12 @@
           }
           tj.row = savedRow; tj.leftCol = savedLeft; tj.rightCol = savedRight; tj.isHalved = savedHalved;
         }
+
         drawBoard();
         return;
       }
-      selectedPiece=null; validMoves=[]; drawBoard();
+
+      selectedPiece=null; validMoves=[]; dangerMoves=[]; drawBoard();
     });
 
     canvas.addEventListener('mousemove', function(e) {
