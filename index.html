@@ -99,7 +99,8 @@
 
     let selectedPiece = null;
     let validMoves = [];
-
+    let dangerMoves = [];   // 存储移动后会被吃的目标格子
+    
     const pieceValues = {
       '天将真': 1000, '天将卫': 800, '巨将': 600, '飞将': 400, '战将': 450,
       '士': 200, '飞士': 250, '战士': 220, '士卒': 180,
@@ -1220,6 +1221,17 @@
         ctx.fill(); ctx.strokeStyle = '#ffe0b5'; ctx.lineWidth = 1; ctx.stroke();
       });
 
+      // 绘制危险移动点（白色）
+      dangerMoves.forEach(m => {
+        const x = getX(m.col), y = getY(m.row);
+        ctx.beginPath(); ctx.arc(x, y, LINE_SPAN*0.15, 0, 2*Math.PI);
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#888888';
+        ctx.lineWidth = 1;
+        ctx.fill();
+        ctx.stroke();
+      });
+      
       medicalBlack.forEach(m=>{ const x=getX(m.col),y=getY(m.row); ctx.fillStyle='#cce0ff'; ctx.globalAlpha=0.5; ctx.fillRect(x,y,LINE_SPAN,LINE_SPAN); ctx.globalAlpha=1; ctx.strokeStyle='#b91c1c'; ctx.lineWidth=3; ctx.fillStyle='#b91c1c'; ctx.beginPath(); ctx.moveTo(x+LINE_SPAN*0.2,y+LINE_SPAN*0.35); ctx.lineTo(x+LINE_SPAN*0.8,y+LINE_SPAN*0.5); ctx.lineTo(x+LINE_SPAN*0.2,y+LINE_SPAN*0.65); ctx.fill(); });
       medicalRed.forEach(m=>{ const x=getX(m.col),y=getY(m.row); ctx.fillStyle='#cce0ff'; ctx.globalAlpha=0.5; ctx.fillRect(x,y,LINE_SPAN,LINE_SPAN); ctx.globalAlpha=1; ctx.strokeStyle='#b91c1c'; ctx.lineWidth=3; ctx.fillStyle='#b91c1c'; ctx.beginPath(); ctx.moveTo(x+LINE_SPAN*0.8,y+LINE_SPAN*0.35); ctx.lineTo(x+LINE_SPAN*0.2,y+LINE_SPAN*0.5); ctx.lineTo(x+LINE_SPAN*0.8,y+LINE_SPAN*0.65); ctx.fill(); });
 
@@ -1317,8 +1329,49 @@
 
       if(piece && piece.name!=='巨将'&& !piece.name.startsWith('天将')) { 
         if(selectedPiece?.type==='board'&&selectedPiece.row===logicRow&&selectedPiece.col===logicCol) {selectedPiece=null; validMoves=[]; drawBoard(); return;} 
-        selectedPiece={type:'board', row:logicRow, col:logicCol, color:piece.color}; 
-        validMoves=generateMoves(currentPlayer).filter(m=>m.type==='piece'&&m.fromRow===logicRow&&m.fromCol===logicCol).map(m=>({row:m.toRow,col:m.toCol})); 
+        selectedPiece={type:'board', row:logicRow, col:logicCol, color:piece.color};
+        validMoves=generateMoves(currentPlayer).filter(m=>m.type==='piece'&&m.fromRow===logicRow&&m.fromCol===logicCol).map(m=>({row:m.toRow,col:m.toCol}));
+
+        // 计算危险移动点
+        dangerMoves = [];
+        const testPiece = board[logicRow-ROW_MIN]?.[logicCol-COL_MIN];
+        if (testPiece) {
+          const savedBoard = board[logicRow-ROW_MIN][logicCol-COL_MIN];
+          for (const mv of validMoves) {
+            // 临时移动棋子
+            board[logicRow-ROW_MIN][logicCol-COL_MIN] = null;
+            board[mv.row-ROW_MIN][mv.col-COL_MIN] = testPiece;
+            // 检查是否被敌方攻击
+            const enemyColor = currentPlayer === RED ? BLACK : RED;
+            let underAttack = false;
+            for (let r = 0; r < ROWS && !underAttack; r++) {
+              for (let c = 0; c < COLS && !underAttack; c++) {
+                const ep = board[r][c];
+                if (ep && ep.color === enemyColor) {
+                  if (canPieceAttackCell(ep, ROW_MIN+r, COL_MIN+c, mv.row, mv.col)) {
+                    underAttack = true;
+                  }
+                }
+              }
+            }
+            // 检查敌方天将
+            if (!underAttack) {
+              for (const etj of tianJiangs) {
+                if (etj.color === enemyColor) {
+                  const cells = etj.isHalved ? [{row: etj.row, col: etj.leftCol}] : [{row: etj.row, col: etj.leftCol}, {row: etj.row, col: etj.rightCol}];
+                  for (const cell of cells) {
+                    if (canTianJiangAttackCell(etj, cell.row, cell.col, mv.row, mv.col)) { underAttack = true; break; }
+                  }
+                }
+              }
+            }
+            if (underAttack) dangerMoves.push(mv);
+            // 恢复棋盘
+            board[mv.row-ROW_MIN][mv.col-COL_MIN] = null;
+            board[logicRow-ROW_MIN][logicCol-COL_MIN] = savedBoard;
+          }
+        }
+
         drawBoard(); return; 
       }
       if(selectedPiece && !piece) {
@@ -1392,6 +1445,44 @@
           if (!tj.isHalved) cells.push({ row: m.toRow, col: m.toLeftCol + 1 });
         });
         validMoves = cells;
+
+        // 计算危险移动点
+        dangerMoves = [];
+        if (tj.color === currentPlayer) {
+          const savedLeft = tj.leftCol, savedRight = tj.rightCol, savedRow = tj.row, savedHalved = tj.isHalved;
+          for (const mv of validMoves) {
+            // 模拟天将移动
+            tj.row = mv.row; tj.leftCol = mv.col; tj.rightCol = tj.isHalved ? mv.col : mv.col + 1;
+            const enemyColor = currentPlayer === RED ? BLACK : RED;
+            let underAttack = false;
+            // 检查普通棋子能否攻击天将任一格
+            for (let r = 0; r < ROWS && !underAttack; r++) {
+              for (let c = 0; c < COLS && !underAttack; c++) {
+                const ep = board[r][c];
+                if (ep && ep.color === enemyColor) {
+                  if (canPieceAttackCell(ep, ROW_MIN+r, COL_MIN+c, mv.row, mv.col)) underAttack = true;
+                  if (!tj.isHalved && !underAttack && canPieceAttackCell(ep, ROW_MIN+r, COL_MIN+c, mv.row, mv.col+1)) underAttack = true;
+                }
+              }
+            }
+            // 检查敌方天将
+            if (!underAttack) {
+              for (const etj of tianJiangs) {
+                if (etj.color === enemyColor) {
+                  const ecells = etj.isHalved ? [{row: etj.row, col: etj.leftCol}] : [{row: etj.row, col: etj.leftCol}, {row: etj.row, col: etj.rightCol}];
+                  for (const ec of ecells) {
+                    if (canTianJiangAttackCell(etj, ec.row, ec.col, mv.row, mv.col)) underAttack = true;
+                    if (!tj.isHalved && !underAttack && canTianJiangAttackCell(etj, ec.row, ec.col, mv.row, mv.col+1)) underAttack = true;
+                  }
+                }
+              }
+            }
+            if (underAttack) dangerMoves.push(mv);
+          }
+          // 恢复天将状态
+          tj.row = savedRow; tj.leftCol = savedLeft; tj.rightCol = savedRight; tj.isHalved = savedHalved;
+        }
+
         drawBoard();
         return;
       }
