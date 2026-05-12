@@ -1397,47 +1397,13 @@
         // 敌方天将不处理，交给前面的通用吃子分支
         if (tj.color !== currentPlayer) continue;
 
-        // 己方天将：如果已经有选中的棋子，说明玩家想移动或吃子，尝试匹配
-        if (selectedPiece) {
-          const move = generateMoves(currentPlayer).find(m => {
-            if (!m.isEat && m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' &&
-                m.tj === selectedPiece.tj && m.toRow === tj.row &&
-                (m.toLeftCol === tj.leftCol || m.toLeftCol === tj.rightCol)) {
-              return true;  // 天将走到天将身上（可能不合法，但交给 applyMove）
-            }
-            if (m.isEat && m.type === 'piece' && selectedPiece.type === 'board' &&
-                m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col &&
-                m.toRow === tj.row && (m.toCol === tj.leftCol || m.toCol === tj.rightCol)) {
-              return true;  // 普通棋子吃天将
-            }
-            if (m.isEat && m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' &&
-                m.tj === selectedPiece.tj && m.toRow === tj.row &&
-                (m.toLeftCol === tj.leftCol || m.toLeftCol === tj.rightCol ||
-                 (!selectedPiece.tj.isHalved && m.toLeftCol + 1 === tj.leftCol) ||
-                 (!selectedPiece.tj.isHalved && m.toLeftCol + 1 === tj.rightCol))) {
-              return true;  // 天将吃天将
-            }
-            return false;
-          });
-          if (move) {
-            if (applyMove(move, currentPlayer)) {
-              currentPlayer = currentPlayer === RED ? BLACK : RED;
-              selectedPiece = null;
-              validMoves = [];
-              drawBoard();
-              statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
-              return;
-            }
-          }
-        }
-
-        // 没有选中的棋子，或移动不合法，进入天将的选中/取消逻辑
+        // 正常选中/取消选中己方天将
         if (selectedPiece?.type === 'tianjiang' && selectedPiece.tj === tj) {
           selectedPiece = null; validMoves = []; drawBoard(); return;
         }
 
-        // 选中己方天将，显示合法位置
-        selectedPiece = { type:'tianjiang', tj, color:tj.color };
+        // 选中己方天将，显示合法移动位置
+        selectedPiece = { type: 'tianjiang', tj, color: tj.color };
         const tjMoves = generateMoves(currentPlayer).filter(m => m.type === 'tianjiang' && m.tj === tj);
         const cells = [];
         tjMoves.forEach(m => {
