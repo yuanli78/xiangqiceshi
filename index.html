@@ -1347,11 +1347,11 @@
             // 检查是否被敌方攻击
             const enemyColor = currentPlayer === RED ? BLACK : RED;
             let underAttack = false;
-            for (let r = 0; r < ROWS && !underAttack; r++) {
-              for (let c = 0; c < COLS && !underAttack; c++) {
-                const ep = board[r][c];
+            for (let ri = 0; ri < ROWS && !underAttack; ri++) {
+              for (let ci = 0; ci < COLS && !underAttack; ci++) {
+                const ep = board[ri][ci];
                 if (ep && ep.color === enemyColor) {
-                  if (canPieceAttackCell(ep, ROW_MIN+r, COL_MIN+c, mv.row, mv.col)) {
+                  if (canPieceAttackCell(ep, ROW_MIN+ri, COL_MIN+ci, mv.row, mv.col)) {
                     underAttack = true;
                   }
                 }
@@ -1423,12 +1423,12 @@
             tj.row = mv.row; tj.leftCol = mv.col; tj.rightCol = tj.isHalved ? mv.col : mv.col + 1;
             const enemyColor = currentPlayer === RED ? BLACK : RED;
             let underAttack = false;
-            for (let r = 0; r < ROWS && !underAttack; r++) {
-              for (let c = 0; c < COLS && !underAttack; c++) {
-                const ep = board[r][c];
+            for (let ri = 0; ri < ROWS && !underAttack; ri++) {
+              for (let ci = 0; ci < COLS && !underAttack; ci++) {
+                const ep = board[ri][ci];
                 if (ep && ep.color === enemyColor) {
-                  if (canPieceAttackCell(ep, ROW_MIN+r, COL_MIN+c, mv.row, mv.col)) underAttack = true;
-                  if (!tj.isHalved && !underAttack && canPieceAttackCell(ep, ROW_MIN+r, COL_MIN+c, mv.row, mv.col+1)) underAttack = true;
+                  if (canPieceAttackCell(ep, ROW_MIN+ri, COL_MIN+ci, mv.row, mv.col)) underAttack = true;
+                  if (!tj.isHalved && !underAttack && canPieceAttackCell(ep, ROW_MIN+ri, COL_MIN+ci, mv.row, mv.col+1)) underAttack = true;
                 }
               }
             }
