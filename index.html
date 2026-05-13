@@ -44,6 +44,7 @@
   <button class="btn" id="autoPlayBtn">▶️ 开始自动对战</button>
   <button class="btn" id="pauseBtn" disabled>⏸️ 暂停</button>
   <button class="btn" id="resetBtn">⟳ 复位并居中</button>
+  <button class="btn" id="undoBtn">↩️ 悔棋</button>
   <div class="log-window" id="logPanel"><div class="log-entry">📋 三十六计第三批+聊斋全系已加入 · 点击棋子显示合法移动位置</div></div>
 </div>
 <div class="footer-copyright"><div class="copyright-inner">源力公社 · 集体版权 · 设定持续更新中</div></div>
@@ -100,6 +101,8 @@
     let selectedPiece = null;
     let validMoves = [];
     let dangerMoves = [];   // 存储移动后会被吃的目标格子
+    let historyStack = [];          // 历史记录栈
+    const MAX_HISTORY = 50;        // 最多悔棋步数
     
     const pieceValues = {
       '天将真': 1000, '天将卫': 800, '巨将': 600, '飞将': 400, '战将': 450,
@@ -1013,6 +1016,20 @@
 
     function applyMove(move, color) {
       try {
+        // 保存当前状态（悔棋用）
+        const snapshot = {
+          board: board.map(row => row.map(cell => cell ? { ...cell } : null)),
+          tianJiangs: tianJiangs.map(tj => ({ ...tj })),
+          giants: giants.map(g => ({ ...g })),
+          stackedDancers: stackedDancers.map(d => ({ ...d })),
+          currentPlayer: currentPlayer,
+          deadPoolBlack: [...deadPoolBlack],
+          deadPoolRed: [...deadPoolRed]
+        };
+        historyStack.push(snapshot);
+        if (historyStack.length > MAX_HISTORY) historyStack.shift();
+
+        // 下面原有的移动逻辑...
         if(move.type==='stackedDancer') {
           const {dancer, toRow, toCol} = move;
           const target = board[toRow-ROW_MIN]?.[toCol-COL_MIN];
@@ -1192,7 +1209,24 @@
       if(applyMove(move, currentPlayer)) { drawBoard(); currentPlayer = currentPlayer===RED?BLACK:RED; statusBar.textContent = `🤖 ${currentPlayer==='red'?'红':'黑'}方思考中...`; }
       else stopAuto();
     }
-
+    function undoMove() {
+      if (autoRunning) return;
+      if (historyStack.length === 0) { log('没有可悔棋的步骤', 'warn'); return; }
+      const snapshot = historyStack.pop();
+      board = snapshot.board;
+      tianJiangs = snapshot.tianJiangs;
+      giants = snapshot.giants;
+      stackedDancers = snapshot.stackedDancers;
+      currentPlayer = snapshot.currentPlayer;
+      deadPoolBlack = snapshot.deadPoolBlack;
+      deadPoolRed = snapshot.deadPoolRed;
+      selectedPiece = null;
+      validMoves = [];
+      dangerMoves = [];
+      countPieces();
+      drawBoard();
+      log('↩️ 悔棋成功', 'info');
+    }
     function startAuto() { if(autoRunning) return; autoRunning=true; document.getElementById('autoPlayBtn').disabled=true; document.getElementById('pauseBtn').disabled=false; autoTimer=setInterval(autoStep,600); }
     function stopAuto() { autoRunning=false; clearInterval(autoTimer); document.getElementById('autoPlayBtn').disabled=false; document.getElementById('pauseBtn').disabled=true; statusBar.textContent='🔹 已暂停'; }
     function resetAndCenter() { stopAuto(); initPieces(); currentPlayer=RED; drawBoard(); countPieces(); selectedPiece=null; validMoves=[]; const cx=getX(1)-boardContainer.clientWidth/2, cy=getY(10)-boardContainer.clientHeight/2; boardContainer.scrollTo({left:cx, top:cy, behavior:'smooth'}); statusBar.textContent='🔹 已复位并居中'; log('🔄 棋盘已复位'); }
@@ -1200,7 +1234,8 @@
     document.getElementById('autoPlayBtn').addEventListener('click', startAuto);
     document.getElementById('pauseBtn').addEventListener('click', stopAuto);
     document.getElementById('resetBtn').addEventListener('click', resetAndCenter);
-
+    document.getElementById('undoBtn').addEventListener('click', undoMove);
+    
     function drawBoard() {
       ctx.clearRect(0,0,canvas.width,canvas.height);
       ctx.fillStyle = '#fff9ef'; ctx.fillRect(0,0,canvas.width,canvas.height);
