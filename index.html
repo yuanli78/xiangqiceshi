@@ -1029,76 +1029,84 @@
 
           // 彻底清理旧位置
           if (t.isHalved) {
-            if (board[oldRow-ROW_MIN]?.[oldLeft-COL_MIN]) {
-              board[oldRow-ROW_MIN][oldLeft-COL_MIN] = null;
+            if (board[oldRow - ROW_MIN]?.[oldLeft - COL_MIN]) {
+              board[oldRow - ROW_MIN][oldLeft - COL_MIN] = null;
             }
           } else {
-            if (board[oldRow-ROW_MIN]?.[oldLeft-COL_MIN]?.name?.startsWith('天将')) {
-              board[oldRow-ROW_MIN][oldLeft-COL_MIN] = null;
+            if (board[oldRow - ROW_MIN]?.[oldLeft - COL_MIN]?.name?.startsWith('天将')) {
+              board[oldRow - ROW_MIN][oldLeft - COL_MIN] = null;
             }
-            if (board[oldRow-ROW_MIN]?.[oldRight-COL_MIN]?.name?.startsWith('天将')) {
-              board[oldRow-ROW_MIN][oldRight-COL_MIN] = null;
+            if (board[oldRow - ROW_MIN]?.[oldRight - COL_MIN]?.name?.startsWith('天将')) {
+              board[oldRow - ROW_MIN][oldRight - COL_MIN] = null;
             }
           }
 
-          // 新位置
           const newRow = move.toRow;
           const newLeft = move.toLeftCol;
           const newRight = newLeft + 1;
-          const newCells = t.isHalved 
-            ? [{row: newRow, col: newLeft}] 
-            : [{row: newRow, col: newLeft}, {row: newRow, col: newRight}];
+          const newCells = t.isHalved
+            ? [{ row: newRow, col: newLeft }]
+            : [{ row: newRow, col: newLeft }, { row: newRow, col: newRight }];
 
-            // 吃子处理（包含敌方天将）
-                  if (move.isEat) {
-                      newCells.forEach(c => {
-                          // 先处理普通敌方棋子
-                          const target = board[c.row-ROW_MIN]?.[c.col-COL_MIN];
-                          if (target && target.color === enemy) {
-                              if (REVIVABLE_TYPES.includes(target.name)) {
-                                  const pool = target.color === BLACK ? deadPoolBlack : deadPoolRed;
-                                  pool.push(target.name);
-                              }
-                              board[c.row-ROW_MIN][c.col-COL_MIN] = null;
-                          }
-                          // 再处理敌方天将
-                          const enemyTianJiang = tianJiangs.find(etj => etj.color === enemy && etj.row === c.row && (etj.leftCol === c.col || etj.rightCol === c.col));
-                          if (enemyTianJiang) {
-                              enemyTianJiang.hp--;
-                              if (enemyTianJiang.hp > 0 && !enemyTianJiang.isHalved) {
-                                  // 首次受伤缩为一格
-                                  enemyTianJiang.isHalved = true;
-                                  const otherCol = (c.col === enemyTianJiang.leftCol) ? enemyTianJiang.rightCol : enemyTianJiang.leftCol;
-                                  if (board[enemyTianJiang.row - ROW_MIN]?.[otherCol - COL_MIN]) {
-                                      board[enemyTianJiang.row - ROW_MIN][otherCol - COL_MIN] = null;
-                                  }
-                                  enemyTianJiang.leftCol = otherCol;
-                                  enemyTianJiang.rightCol = otherCol;
-                                  log(`${enemyTianJiang.color === RED ? '红' : '黑'}方天将${enemyTianJiang.type}受创，缩为一格！`, 'warn');
-                              } else if (enemyTianJiang.hp <= 0) {
-                                  log(`${enemyTianJiang.color === RED ? '红' : '黑'}方天将${enemyTianJiang.type}被击杀！`, 'warn');
-                                  if (!enemyTianJiang.isHalved) {
-                                      const otherCol = (c.col === enemyTianJiang.leftCol) ? enemyTianJiang.rightCol : enemyTianJiang.leftCol;
-                                      if (board[enemyTianJiang.row - ROW_MIN]?.[otherCol - COL_MIN]) {
-                                          board[enemyTianJiang.row - ROW_MIN][otherCol - COL_MIN] = null;
-                                      }
-                                  }
-                                  tianJiangs.splice(tianJiangs.indexOf(enemyTianJiang), 1);
-                              }
-                          }
-                      });
-                      // 真将首次吃子升级
-                      if (t.type === '真' && !t.isUpgraded) {
-                          t.isUpgraded = true;
-                          log(`⚡ 天将真首次吃子，升级为大将！`, 'info');
-                      }
+          // 吃子处理（包含敌方天将）
+          if (move.isEat) {
+            let hasEaten = false; // 是否真的吃到了棋子
+            newCells.forEach(c => {
+              // 普通棋子
+              const target = board[c.row - ROW_MIN]?.[c.col - COL_MIN];
+              if (target && target.color === enemy) {
+                if (REVIVABLE_TYPES.includes(target.name)) {
+                  const pool = target.color === BLACK ? deadPoolBlack : deadPoolRed;
+                  pool.push(target.name);
+                }
+                board[c.row - ROW_MIN][c.col - COL_MIN] = null;
+                hasEaten = true;
+              }
+              // 敌方天将
+              const enemyTJ = tianJiangs.find(etj =>
+                etj.color === enemy &&
+                etj.row === c.row &&
+                (etj.leftCol === c.col || etj.rightCol === c.col)
+              );
+              if (enemyTJ) {
+                enemyTJ.hp--;
+                if (enemyTJ.hp > 0 && !enemyTJ.isHalved) {
+                  // 受伤缩为一格
+                  enemyTJ.isHalved = true;
+                  const otherCol = (c.col === enemyTJ.leftCol) ? enemyTJ.rightCol : enemyTJ.leftCol;
+                  if (board[enemyTJ.row - ROW_MIN]?.[otherCol - COL_MIN]) {
+                    board[enemyTJ.row - ROW_MIN][otherCol - COL_MIN] = null;
                   }
+                  enemyTJ.leftCol = otherCol;
+                  enemyTJ.rightCol = otherCol;
+                  log(`${enemyTJ.color === RED ? '红' : '黑'}方天将${enemyTJ.type}受创，缩为一格！`, 'warn');
+                } else if (enemyTJ.hp <= 0) {
+                  log(`${enemyTJ.color === RED ? '红' : '黑'}方天将${enemyTJ.type}被击杀！`, 'warn');
+                  if (!enemyTJ.isHalved) {
+                    const otherCol = (c.col === enemyTJ.leftCol) ? enemyTJ.rightCol : enemyTJ.leftCol;
+                    if (board[enemyTJ.row - ROW_MIN]?.[otherCol - COL_MIN]) {
+                      board[enemyTJ.row - ROW_MIN][otherCol - COL_MIN] = null;
+                    }
+                  }
+                  tianJiangs.splice(tianJiangs.indexOf(enemyTJ), 1);
+                }
+                hasEaten = true;
+              }
+            });
+
+            // 真将首次吃子升级（只要吃到了棋子，无论类型）
+            if (hasEaten && t.type === '真' && !t.isUpgraded) {
+              t.isUpgraded = true;
+              log(`⚡ 天将真首次吃子，升级为大将！`, 'info');
+            }
+          }
+
           // 放置天将到新位置
           newCells.forEach(c => {
-            board[c.row-ROW_MIN][c.col-COL_MIN] = { name: '天将' + t.type, color: color };
+            board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: color };
           });
 
-          // 更新天将坐标（半血时保持单格）
+          // 更新坐标
           t.row = newRow;
           t.leftCol = newLeft;
           t.rightCol = t.isHalved ? newLeft : newRight;
