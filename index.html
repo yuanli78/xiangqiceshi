@@ -836,10 +836,11 @@
                   if (!board[midRow-ROW_MIN]?.[midCol-COL_MIN]) continue; // 必须隔一子
               }
         
-              // 检查目标格是否有敌子
+              // 检查目标格是否有敌子（包括敌方天将）
               const hasEnemy = newCells.some(c => {
                   const p = board[c.row-ROW_MIN]?.[c.col-COL_MIN];
-                  return p && p.color === enemy;
+                  if (p && p.color === enemy) return true;
+                  return tianJiangs.some(etj => etj.color === enemy && etj.row === c.row && (etj.leftCol === c.col || etj.rightCol === c.col));
               });
         
               // 未被将军时：可以吃子
@@ -1048,25 +1049,50 @@
             ? [{row: newRow, col: newLeft}] 
             : [{row: newRow, col: newLeft}, {row: newRow, col: newRight}];
 
-          // 吃子处理
-          if (move.isEat) {
-            newCells.forEach(c => {
-              const target = board[c.row-ROW_MIN]?.[c.col-COL_MIN];
-              if (target && target.color === enemy) {
-                if (REVIVABLE_TYPES.includes(target.name)) {
-                  const pool = target.color === BLACK ? deadPoolBlack : deadPoolRed;
-                  pool.push(target.name);
-                }
-                board[c.row-ROW_MIN][c.col-COL_MIN] = null;
-              }
-            });
-            // 真将首次吃子升级
-            if (t.type === '真' && !t.isUpgraded) {
-              t.isUpgraded = true;
-              log(`⚡ 天将真首次吃子，升级为大将！`, 'info');
-            }
-          }
-
+            // 吃子处理（包含敌方天将）
+                  if (move.isEat) {
+                      newCells.forEach(c => {
+                          // 先处理普通敌方棋子
+                          const target = board[c.row-ROW_MIN]?.[c.col-COL_MIN];
+                          if (target && target.color === enemy) {
+                              if (REVIVABLE_TYPES.includes(target.name)) {
+                                  const pool = target.color === BLACK ? deadPoolBlack : deadPoolRed;
+                                  pool.push(target.name);
+                              }
+                              board[c.row-ROW_MIN][c.col-COL_MIN] = null;
+                          }
+                          // 再处理敌方天将
+                          const enemyTianJiang = tianJiangs.find(etj => etj.color === enemy && etj.row === c.row && (etj.leftCol === c.col || etj.rightCol === c.col));
+                          if (enemyTianJiang) {
+                              enemyTianJiang.hp--;
+                              if (enemyTianJiang.hp > 0 && !enemyTianJiang.isHalved) {
+                                  // 首次受伤缩为一格
+                                  enemyTianJiang.isHalved = true;
+                                  const otherCol = (c.col === enemyTianJiang.leftCol) ? enemyTianJiang.rightCol : enemyTianJiang.leftCol;
+                                  if (board[enemyTianJiang.row - ROW_MIN]?.[otherCol - COL_MIN]) {
+                                      board[enemyTianJiang.row - ROW_MIN][otherCol - COL_MIN] = null;
+                                  }
+                                  enemyTianJiang.leftCol = otherCol;
+                                  enemyTianJiang.rightCol = otherCol;
+                                  log(`${enemyTianJiang.color === RED ? '红' : '黑'}方天将${enemyTianJiang.type}受创，缩为一格！`, 'warn');
+                              } else if (enemyTianJiang.hp <= 0) {
+                                  log(`${enemyTianJiang.color === RED ? '红' : '黑'}方天将${enemyTianJiang.type}被击杀！`, 'warn');
+                                  if (!enemyTianJiang.isHalved) {
+                                      const otherCol = (c.col === enemyTianJiang.leftCol) ? enemyTianJiang.rightCol : enemyTianJiang.leftCol;
+                                      if (board[enemyTianJiang.row - ROW_MIN]?.[otherCol - COL_MIN]) {
+                                          board[enemyTianJiang.row - ROW_MIN][otherCol - COL_MIN] = null;
+                                      }
+                                  }
+                                  tianJiangs.splice(tianJiangs.indexOf(enemyTianJiang), 1);
+                              }
+                          }
+                      });
+                      // 真将首次吃子升级
+                      if (t.type === '真' && !t.isUpgraded) {
+                          t.isUpgraded = true;
+                          log(`⚡ 天将真首次吃子，升级为大将！`, 'info');
+                      }
+                  }
           // 放置天将到新位置
           newCells.forEach(c => {
             board[c.row-ROW_MIN][c.col-COL_MIN] = { name: '天将' + t.type, color: color };
