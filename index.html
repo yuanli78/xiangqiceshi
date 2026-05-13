@@ -842,9 +842,6 @@
                   return p && p.color === enemy;
               });
         
-              // 被将军时：不能走到有敌子的格子上（不能吃子解将）
-              if (inCheck && hasEnemy) continue;
-        
               // 未被将军时：可以吃子
               const canEat = !inCheck && hasEnemy;
         
