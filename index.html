@@ -846,8 +846,8 @@
                   return tianJiangs.some(etj => etj.color === enemy && etj.row === c.row && (etj.leftCol === c.col || etj.rightCol === c.col));
               });
         
-              // 未被将军时：可以吃子
-              const canEat = !inCheck && hasEnemy;
+              // 允许在任何情况下吃子，风险由玩家通过白点自行判断
+              const canEat = hasEnemy;
         
               // 将帅照面检查（特异走法不能造成照面）
               if (inCheck) {
@@ -1381,7 +1381,7 @@
       }
 
       // 点击普通己方棋子（非天将），选中并计算危险点
-      if(piece && piece.name!=='巨将'&& !piece.name.startsWith('天将')) { 
+        if(piece && piece.color === currentPlayer && piece.name!=='巨将'&& !piece.name.startsWith('天将')) { 
         if(selectedPiece?.type==='board'&&selectedPiece.row===logicRow&&selectedPiece.col===logicCol) {selectedPiece=null; validMoves=[]; dangerMoves=[]; drawBoard(); return;} 
         selectedPiece={type:'board', row:logicRow, col:logicCol, color:piece.color};
         validMoves=generateMoves(currentPlayer).filter(m=>m.type==='piece'&&m.fromRow===logicRow&&m.fromCol===logicCol).map(m=>({row:m.toRow,col:m.toCol}));
