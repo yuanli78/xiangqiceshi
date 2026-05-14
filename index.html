@@ -1424,7 +1424,42 @@
         }
         drawBoard(); return; 
       }
-
+      // 处理己方棋子攻击敌方天将（天将互吃）
+      if (selectedPiece) {
+        let targetTJ = null;
+        for (const tj of tianJiangs) {
+          if (tj.color === currentPlayer) continue;
+          const cx = (getX(tj.leftCol) + getX(tj.rightCol)) / 2;
+          const cy = getY(tj.row);
+          const hit = tj.isHalved
+            ? (mx - cx) ** 2 + (my - cy) ** 2 <= (LINE_SPAN * 0.38) ** 2
+            : (mx - cx) ** 2 / (LINE_SPAN * 1.0) ** 2 + (my - cy) ** 2 / (LINE_SPAN * 0.55) ** 2 <= 1;
+          if (hit) { targetTJ = tj; break; }
+        }
+        if (targetTJ) {
+          const tj = targetTJ;
+          const move = generateMoves(currentPlayer).find(m => {
+            // 普通棋子吃天将
+            if (m.type === 'piece' && selectedPiece.type === 'board' && m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col && m.toRow === tj.row && (m.toCol === tj.leftCol || m.toCol === tj.rightCol) && m.isEat) return true;
+            // 天将吃天将（支持两格）
+            if (m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' && m.tj === selectedPiece.tj && m.toRow === tj.row && (m.toLeftCol === tj.leftCol || m.toLeftCol === tj.rightCol || (!selectedPiece.tj.isHalved && (m.toLeftCol + 1 === tj.leftCol || m.toLeftCol + 1 === tj.rightCol))) && m.isEat) return true;
+            // 巨将吃天将
+            if (m.type === 'giant' && selectedPiece.type === 'giant' && m.giant.topLeftRow === selectedPiece.topLeftRow && m.giant.topLeftCol === selectedPiece.topLeftCol && m.toRow === tj.row && (m.toCol === tj.leftCol || m.toCol === tj.rightCol)) return true;
+            return false;
+          });
+          if (move) {
+            if (applyMove(move, currentPlayer)) {
+              currentPlayer = currentPlayer === RED ? BLACK : RED;
+              selectedPiece = null;
+              validMoves = [];
+              dangerMoves = [];
+              drawBoard();
+              statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
+              return;
+            }
+          }
+        }
+      }
       // 点击空格移动
       if(selectedPiece && !piece) {
         const move = generateMoves(currentPlayer).find(m=>{
