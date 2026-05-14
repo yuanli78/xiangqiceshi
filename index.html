@@ -1368,20 +1368,34 @@
         });
         if (hoveredEnemyTJ) {
           const tj = hoveredEnemyTJ;
-          const attackMove = generateMoves(currentPlayer).find(m => {
-            if (!m.isEat) return false;
-            if (m.type === 'piece' && selectedPiece.type === 'board' &&
-                m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col &&
-                m.toRow === tj.row && (m.toCol === tj.leftCol || m.toCol === tj.rightCol)) return true;
-            if (m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' &&
-                m.tj === selectedPiece.tj && m.toRow === tj.row &&
-                (m.toLeftCol === tj.leftCol || m.toLeftCol === tj.rightCol ||
-                 (!selectedPiece.tj.isHalved && (m.toLeftCol + 1 === tj.leftCol || m.toLeftCol + 1 === tj.rightCol)))) return true;
-            if (m.type === 'giant' && selectedPiece.type === 'giant' &&
-                m.giant.topLeftRow === selectedPiece.topLeftRow && m.giant.topLeftCol === selectedPiece.topLeftCol &&
-                m.toRow === tj.row && (m.toCol === tj.leftCol || m.toCol === tj.rightCol)) return true;
-            return false;
-          });
+          // 使用实际点击的格子列作为攻击目标，确保点哪打哪
+          let colsToTry = [];
+          if (logicCol === tj.leftCol || logicCol === tj.rightCol) {
+            colsToTry.push(logicCol);
+          } else {
+            // 四舍五入后不在天将格内（比如点在两格交界），两格都试试
+            colsToTry.push(tj.leftCol, tj.rightCol);
+          }
+          let attackMove = null;
+          for (const col of colsToTry) {
+            attackMove = generateMoves(currentPlayer).find(m => {
+              if (!m.isEat) return false;
+              // 普通棋子吃天将
+              if (m.type === 'piece' && selectedPiece.type === 'board' &&
+                  m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col &&
+                  m.toRow === tj.row && m.toCol === col) return true;
+              // 天将吃天将（支持两格吃法）
+              if (m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' &&
+                  m.tj === selectedPiece.tj && m.toRow === tj.row &&
+                  (m.toLeftCol === col || (!selectedPiece.tj.isHalved && m.toLeftCol + 1 === col))) return true;
+              // 巨将吃天将
+              if (m.type === 'giant' && selectedPiece.type === 'giant' &&
+                  m.giant.topLeftRow === selectedPiece.topLeftRow && m.giant.topLeftCol === selectedPiece.topLeftCol &&
+                  m.toRow === tj.row && m.toCol === col) return true;
+              return false;
+            });
+            if (attackMove) break; // 找到就停止
+          }
           if (attackMove) {
             if (applyMove(attackMove, currentPlayer)) {
               currentPlayer = currentPlayer === RED ? BLACK : RED;
