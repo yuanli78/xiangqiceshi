@@ -1356,7 +1356,45 @@
       for (const g of giants) { const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if ((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2) { selectedPiece={type:'giant', topLeftRow:g.topLeftRow, topLeftCol:g.topLeftCol, color:g.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='giant'&&m.giant.topLeftRow===g.topLeftRow&&m.giant.topLeftCol===g.topLeftCol).map(m=>({row:m.toRow,col:m.toCol})); dangerMoves=[]; drawBoard(); return; } }
       // 叠舞选择
       for (const d of stackedDancers) { if(d.row===logicRow && d.col===logicCol) { selectedPiece={type:'stackedDancer', dancer:d, color:d.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='stackedDancer'&&m.dancer===d).map(m=>({row:m.toRow,col:m.toCol})); dangerMoves=[]; drawBoard(); return; } }
-
+      // ★ 优先处理天将互吃（必须在 piece 取 null 之前）
+      if (selectedPiece) {
+        const hoveredEnemyTJ = tianJiangs.find(tj => {
+          if (tj.color === currentPlayer) return false;
+          const cx = (getX(tj.leftCol) + getX(tj.rightCol)) / 2;
+          const cy = getY(tj.row);
+          return tj.isHalved
+            ? (mx - cx) ** 2 + (my - cy) ** 2 <= (LINE_SPAN * 0.38) ** 2
+            : (mx - cx) ** 2 / (LINE_SPAN * 1.0) ** 2 + (my - cy) ** 2 / (LINE_SPAN * 0.55) ** 2 <= 1;
+        });
+        if (hoveredEnemyTJ) {
+          const tj = hoveredEnemyTJ;
+          const attackMove = generateMoves(currentPlayer).find(m => {
+            if (!m.isEat) return false;
+            if (m.type === 'piece' && selectedPiece.type === 'board' &&
+                m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col &&
+                m.toRow === tj.row && (m.toCol === tj.leftCol || m.toCol === tj.rightCol)) return true;
+            if (m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' &&
+                m.tj === selectedPiece.tj && m.toRow === tj.row &&
+                (m.toLeftCol === tj.leftCol || m.toLeftCol === tj.rightCol ||
+                 (!selectedPiece.tj.isHalved && (m.toLeftCol + 1 === tj.leftCol || m.toLeftCol + 1 === tj.rightCol)))) return true;
+            if (m.type === 'giant' && selectedPiece.type === 'giant' &&
+                m.giant.topLeftRow === selectedPiece.topLeftRow && m.giant.topLeftCol === selectedPiece.topLeftCol &&
+                m.toRow === tj.row && (m.toCol === tj.leftCol || m.toCol === tj.rightCol)) return true;
+            return false;
+          });
+          if (attackMove) {
+            if (applyMove(attackMove, currentPlayer)) {
+              currentPlayer = currentPlayer === RED ? BLACK : RED;
+              selectedPiece = null;
+              validMoves = [];
+              dangerMoves = [];
+              drawBoard();
+              statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
+              return;
+            }
+          }
+        }
+      }
       const r=logicRow-ROW_MIN, c=logicCol-COL_MIN; const piece=board[r]?.[c];
       // 如果已选中己方棋子，且点击的是敌方棋子，优先尝试吃子移动
       if (selectedPiece && piece && piece.color !== currentPlayer && piece.name !== '巨将'){
