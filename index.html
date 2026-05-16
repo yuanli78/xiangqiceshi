@@ -849,12 +849,6 @@
               // 允许在任何情况下吃子，风险由玩家通过白点自行判断
               const canEat = hasEnemy;
         
-              // 将帅照面检查（特异走法不能造成照面）
-              if (inCheck) {
-                  // 这里的照面检查简化：如果天将真移动后与对方天将真在同一条纵线上且无遮挡，则无效
-                  if (t.type === '真' && wouldCauseGeneralFaceoff(t, newCells, color)) continue;
-              }
-        
               moves.push({
                   type: 'tianjiang',
                   tj: t,
@@ -1551,54 +1545,39 @@
           : (mx - cx) ** 2 / (LINE_SPAN * 1.0) ** 2 + (my - cy) ** 2 / (LINE_SPAN * 0.55) ** 2 <= 1;
         if (!hit) continue;
 
-        // 敌方天将不处理，交给前面的通用吃子分支
-        if (tj.color !== currentPlayer) continue;
-
-        // 如果己方天将已选中，且鼠标点击位置有敌方棋子或敌方天将，优先执行吃子
-        if (selectedPiece && selectedPiece.type === 'tianjiang' && selectedPiece.tj === tj) {
-          // 检查鼠标位置是否有敌方普通棋子
-          const enemyPiece = board[logicRow - ROW_MIN]?.[logicCol - COL_MIN];
-          if (enemyPiece && enemyPiece.color !== currentPlayer) {
-            const move = generateMoves(currentPlayer).find(m =>
+        // 如果己方天将已选中，且点击位置在己方天将上，检查是否有可执行的吃子移动
+        if (selectedPiece && selectedPiece.type === 'tianjiang' && selectedPiece.tj === tj && tj.color === currentPlayer) {
+          // 尝试匹配吃子移动（目标可能是普通棋子或敌方天将）
+          const targetCols = [logicCol];
+          // 如果点击位置在天将的左右格之间，把两格都加入候选
+          if (logicCol !== tj.leftCol && logicCol !== tj.rightCol) {
+            targetCols.push(tj.leftCol, tj.rightCol);
+          }
+          let move = null;
+          for (const col of targetCols) {
+            move = generateMoves(currentPlayer).find(m =>
               m.type === 'tianjiang' && m.tj === tj && m.isEat &&
-              m.toRow === logicRow && (m.toLeftCol === logicCol || (!tj.isHalved && m.toLeftCol + 1 === logicCol))
+              m.toRow === logicRow && (m.toLeftCol === col || (!tj.isHalved && m.toLeftCol + 1 === col))
             );
-            if (move) {
-              if (applyMove(move, currentPlayer)) {
-                currentPlayer = currentPlayer === RED ? BLACK : RED;
-                selectedPiece = null;
-                validMoves = [];
-                dangerMoves = [];
-                drawBoard();
-                statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
-                return;
-              }
+            if (move) break;
+          }
+          if (move) {
+            if (applyMove(move, currentPlayer)) {
+              currentPlayer = currentPlayer === RED ? BLACK : RED;
+              selectedPiece = null;
+              validMoves = [];
+              dangerMoves = [];
+              drawBoard();
+              statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
+              return;
             }
           }
-          // 检查鼠标位置是否有敌方天将
-          const enemyTJ = tianJiangs.find(etj =>
-            etj.color !== currentPlayer &&
-            etj.row === logicRow &&
-            (etj.leftCol === logicCol || etj.rightCol === logicCol)
-          );
-          if (enemyTJ) {
-            const move = generateMoves(currentPlayer).find(m =>
-              m.type === 'tianjiang' && m.tj === tj && m.isEat &&
-              m.toRow === logicRow && (m.toLeftCol === logicCol || (!tj.isHalved && m.toLeftCol + 1 === logicCol))
-            );
-            if (move) {
-              if (applyMove(move, currentPlayer)) {
-                currentPlayer = currentPlayer === RED ? BLACK : RED;
-                selectedPiece = null;
-                validMoves = [];
-                dangerMoves = [];
-                drawBoard();
-                statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
-                return;
-              }
-            }
-          }
+          // 即使没有吃子移动，也保留选中状态，不做任何事
+          return;
         }
+
+        // 敌方天将，且没有己方天将选中，直接跳过
+        if (tj.color !== currentPlayer) continue;
 
         // 正常选中/取消选中己方天将
         if (selectedPiece?.type === 'tianjiang' && selectedPiece.tj === tj) {
