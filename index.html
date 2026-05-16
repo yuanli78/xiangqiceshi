@@ -741,7 +741,6 @@
               // 标准走法：横竖一格
               offsets.push([-1,0],[1,0],[0,-1],[0,1]);
               // 天将跨河跳跃（从河岸直接跳对岸，支持往返）
-          if (!inCheck) {
             const cr = currentCells[0].row;
             if (color === BLACK) {
               if (cr === 6) offsets.push([4, 0]);   // 行6→行10
@@ -756,7 +755,7 @@
               else if (cr === 6) offsets.push([4, 0]);   // 行6→行10
               else if (cr === 7) offsets.push([3, 0]);   // 行7→行10
             }
-          }
+          
               // 壳棋存在或真将升级（大将）：士线一格
               if (shellAlive || (t.type === '真' && t.isUpgraded)) {
                   offsets.push([-1,-1],[-1,1],[1,-1],[1,1]);
