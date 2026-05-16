@@ -1080,11 +1080,12 @@
                 (etj.leftCol === c.col || etj.rightCol === c.col)
               );
               if (enemyTJ) {
-                // 计算攻击方向（基于天将移动前的位置）
+                // 计算攻击方向（基于天将移动后的位置与目标格子）
                 const dr = c.row - oldRow;
                 const dc = c.col - oldLeft;
-                // 纵向攻击（正前/正后）→ 直接击杀
-                if (dc === 0 && dr !== 0) {
+                // 纵向正对紧邻（同列且行数差1）→ 强杀
+                const isAdjacentVertical = (dc === 0 && Math.abs(dr) === 1);
+                if (isAdjacentVertical) {
                   enemyTJ.hp = 0;
                 } else {
                   enemyTJ.hp--;
