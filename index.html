@@ -1079,14 +1079,23 @@
                 board[c.row - ROW_MIN][c.col - COL_MIN] = null;
                 hasEaten = true;
               }
-              // 敌方天将
+                            // 敌方天将
               const enemyTJ = tianJiangs.find(etj =>
                 etj.color === enemy &&
                 etj.row === c.row &&
                 (etj.leftCol === c.col || etj.rightCol === c.col)
               );
               if (enemyTJ) {
-                enemyTJ.hp--;
+                // 计算攻击方向（基于天将移动前的位置）
+                const dr = c.row - oldRow;
+                const dc = c.col - oldLeft;
+                // 纵向攻击（正前/正后）→ 直接击杀
+                if (dc === 0 && dr !== 0) {
+                  enemyTJ.hp = 0;
+                } else {
+                  enemyTJ.hp--;
+                }
+
                 if (enemyTJ.hp > 0 && !enemyTJ.isHalved) {
                   // 受伤缩为一格
                   enemyTJ.isHalved = true;
@@ -1098,6 +1107,7 @@
                   enemyTJ.rightCol = otherCol;
                   log(`${enemyTJ.color === RED ? '红' : '黑'}方天将${enemyTJ.type}受创，缩为一格！`, 'warn');
                 } else if (enemyTJ.hp <= 0) {
+                  // 死亡
                   log(`${enemyTJ.color === RED ? '红' : '黑'}方天将${enemyTJ.type}被击杀！`, 'warn');
                   if (!enemyTJ.isHalved) {
                     const otherCol = (c.col === enemyTJ.leftCol) ? enemyTJ.rightCol : enemyTJ.leftCol;
