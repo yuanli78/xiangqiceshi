@@ -1079,7 +1079,7 @@
                 board[c.row - ROW_MIN][c.col - COL_MIN] = null;
                 hasEaten = true;
               }
-                            // 敌方天将
+              // 敌方天将
               const enemyTJ = tianJiangs.find(etj =>
                 etj.color === enemy &&
                 etj.row === c.row &&
@@ -1543,6 +1543,7 @@
 
       // 天将点击处理（放在最后，不拦截吃子）
       for (const tj of tianJiangs) {
+        // 半血用圆形碰撞，正常用椭圆碰撞
         const cx = (getX(tj.leftCol) + getX(tj.rightCol)) / 2;
         const cy = getY(tj.row);
         const hit = tj.isHalved
@@ -1552,6 +1553,52 @@
 
         // 敌方天将不处理，交给前面的通用吃子分支
         if (tj.color !== currentPlayer) continue;
+
+        // 如果己方天将已选中，且鼠标点击位置有敌方棋子或敌方天将，优先执行吃子
+        if (selectedPiece && selectedPiece.type === 'tianjiang' && selectedPiece.tj === tj) {
+          // 检查鼠标位置是否有敌方普通棋子
+          const enemyPiece = board[logicRow - ROW_MIN]?.[logicCol - COL_MIN];
+          if (enemyPiece && enemyPiece.color !== currentPlayer) {
+            const move = generateMoves(currentPlayer).find(m =>
+              m.type === 'tianjiang' && m.tj === tj && m.isEat &&
+              m.toRow === logicRow && (m.toLeftCol === logicCol || (!tj.isHalved && m.toLeftCol + 1 === logicCol))
+            );
+            if (move) {
+              if (applyMove(move, currentPlayer)) {
+                currentPlayer = currentPlayer === RED ? BLACK : RED;
+                selectedPiece = null;
+                validMoves = [];
+                dangerMoves = [];
+                drawBoard();
+                statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
+                return;
+              }
+            }
+          }
+          // 检查鼠标位置是否有敌方天将
+          const enemyTJ = tianJiangs.find(etj =>
+            etj.color !== currentPlayer &&
+            etj.row === logicRow &&
+            (etj.leftCol === logicCol || etj.rightCol === logicCol)
+          );
+          if (enemyTJ) {
+            const move = generateMoves(currentPlayer).find(m =>
+              m.type === 'tianjiang' && m.tj === tj && m.isEat &&
+              m.toRow === logicRow && (m.toLeftCol === logicCol || (!tj.isHalved && m.toLeftCol + 1 === logicCol))
+            );
+            if (move) {
+              if (applyMove(move, currentPlayer)) {
+                currentPlayer = currentPlayer === RED ? BLACK : RED;
+                selectedPiece = null;
+                validMoves = [];
+                dangerMoves = [];
+                drawBoard();
+                statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
+                return;
+              }
+            }
+          }
+        }
 
         // 正常选中/取消选中己方天将
         if (selectedPiece?.type === 'tianjiang' && selectedPiece.tj === tj) {
