@@ -787,18 +787,14 @@
               // 河界检查（天将不可入河）
               if (newCells.some(c => isInRiver(c.row))) continue;
         
-              // 是否被己方棋子占据（排除天将自身的另一格）
+              // 是否被己方棋子占据（己方天将不阻挡，包括自己和其他天将）
               if (newCells.some(c => {
                   const p = board[c.row - ROW_MIN]?.[c.col - COL_MIN];
-                  // 如果格子是空的，或者是敌方棋子，不阻挡
-                  if (!p) return false;
-                  if (p.color !== color) return false;
-                  // 如果是己方棋子，且是天将自己（旧位置），不阻挡
-                  const isOwnBody = tianJiangs.some(otj =>
-                    otj === t &&
-                    (otj.row === c.row && (otj.leftCol === c.col || otj.rightCol === c.col))
-                  );
-                  return !isOwnBody;
+                  if (!p) return false;               // 空格不挡
+                  if (p.color !== color) return false; // 敌方棋子不在这里挡（后面会处理吃子）
+                  // 只要是己方天将（无论真、卫、半血），都允许通过
+                  if (p.name.startsWith('天将')) return false;
+                  return true; // 其他己方棋子阻挡
               })) continue;
         
               // 判断是“走两格/日字/隔子跳”中的哪一种
