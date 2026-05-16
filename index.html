@@ -1080,13 +1080,18 @@
                 (etj.leftCol === c.col || etj.rightCol === c.col)
               );
               if (enemyTJ) {
-                // 计算攻击方向（基于天将移动后的位置与目标格子）
-                const dr = c.row - oldRow;
-                const dc = c.col - oldLeft;
-                // 纵向正对紧邻（同列且行数差1）→ 强杀
-                const isAdjacentVertical = (dc === 0 && Math.abs(dr) === 1);
-                if (isAdjacentVertical) {
-                  enemyTJ.hp = 0;
+                // 判断是否完全正对且纵向紧邻
+                const attackerLeft = t.leftCol;   // 移动前天将左列
+                const attackerRight = t.rightCol; // 移动前天将右列
+                const defenderLeft = enemyTJ.leftCol;
+                const defenderRight = enemyTJ.rightCol;
+                const dr = c.row - t.row; // 行数差
+                const isAligned = (attackerLeft === defenderLeft && attackerRight === defenderRight);
+                const isAdjacentVertical = (dr === 1 || dr === -1);
+                const isFrontalAssault = isAligned && isAdjacentVertical;
+
+                if (isFrontalAssault) {
+                  enemyTJ.hp = 0; // 强杀
                 } else {
                   enemyTJ.hp--;
                 }
