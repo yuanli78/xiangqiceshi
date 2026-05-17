@@ -876,7 +876,18 @@
         const row=ROW_MIN+r, col=COL_MIN+c;
         if(piece.name==='国象' && !isOwnHalf(row, color)) continue;
 
-        let offsets = [];
+        let offsets = []; 
+        // ========== 跨河跳跃（所有可过河陆地棋子） ==========
+        const cantCross = ['雷','军师','御','诏','隔','趁','关','上','狐','国象','交','涉'];
+        if (!cantCross.includes(piece.name)) {
+          if (color === BLACK && (row === 6 || row === 7)) {
+            const jumpRow = row + (row === 6 ? 4 : 3); // 6→10, 7→10
+            if (jumpRow >= ROW_MIN && jumpRow <= ROW_MAX) offsets.push([jumpRow - row, 0]);
+          } else if (color === RED && (row === 10 || row === 11)) {
+            const jumpRow = row - (row === 10 ? 3 : 4); // 10→7, 11→7
+            if (jumpRow >= ROW_MIN && jumpRow <= ROW_MAX) offsets.push([jumpRow - row, 0]);
+          }
+        }
         if(['象','飞象','战象'].includes(piece.name)) offsets = [[-2,-2],[-2,2],[2,-2],[2,2],[-1,-1],[-1,1],[1,-1],[1,1]];
         else if(['士','飞士','战士','士卒','影士'].includes(piece.name)) offsets = [[-1,-1],[-1,1],[1,-1],[1,1]];
         else if(['马','飞马','战马','骡','异型马'].includes(piece.name)) offsets = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
