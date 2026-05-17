@@ -99,6 +99,27 @@
     const medicalRed = [{row:13,col:16},{row:13,col:18},{row:13,col:20}];
 
     let selectedPiece = null;
+    // ===== 九桥系统（汉制五门三道） =====
+    const bridgeCells = [
+      // 旁桥（8座，每座4行）
+      {row:7,col:-21},{row:8,col:-21},{row:9,col:-21},{row:10,col:-21}, // 皋门
+      {row:7,col:-15},{row:8,col:-15},{row:9,col:-15},{row:10,col:-15}, // 库门
+      {row:7,col:-9},{row:8,col:-9},{row:9,col:-9},{row:10,col:-9},     // 雉门
+      {row:7,col:-3},{row:8,col:-3},{row:9,col:-3},{row:10,col:-3},     // 应门
+      {row:7,col:6},{row:8,col:6},{row:9,col:6},{row:10,col:6},         // 路门
+      {row:7,col:12},{row:8,col:12},{row:9,col:12},{row:10,col:12},     // 左掖门
+      {row:7,col:18},{row:8,col:18},{row:9,col:18},{row:10,col:18},     // 右掖门
+      {row:7,col:24},{row:8,col:24},{row:9,col:24},{row:10,col:24},     // 公车门
+      // 御桥（2列×4行，椭圆天将专行）
+      {row:7,col:0},{row:8,col:0},{row:9,col:0},{row:10,col:0},
+      {row:7,col:1},{row:8,col:1},{row:9,col:1},{row:10,col:1}
+    ];
+    function isBridge(row, col) {
+      return bridgeCells.some(b => b.row === row && b.col === col);
+    }
+    function isYuBridge(col) {
+      return col === 0 || col === 1;
+    }
     let validMoves = [];
     let dangerMoves = [];   // 存储移动后会被吃的目标格子
     let historyStack = [];          // 历史记录栈
@@ -461,7 +482,12 @@
     function isOwnHalf(row, color) {
       return color === BLACK ? row <= RIVER_ROW_START-1 : row >= RIVER_ROW_END+1;
     }
-    function isInRiver(row) { return row >= RIVER_ROW_START && row <= RIVER_ROW_END; }
+    function isInRiver(row, col) {  // 注意：现在需要传入列参数
+     if (row < RIVER_ROW_START || row > RIVER_ROW_END) return false;
+     // 如果该格是桥，视为陆地，可通行
+     if (col !== undefined && isBridge(row, col)) return false;
+     return true;
+   }
     function checkGameEnd() {
       const redZhen = tianJiangs.find(t => t.type === '真' && t.color === RED);
       const blackZhen = tianJiangs.find(t => t.type === '真' && t.color === BLACK);
@@ -785,7 +811,7 @@
               // 边界检查
               if (newCells.some(c => c.row < ROW_MIN || c.row > ROW_MAX || c.col < COL_MIN || c.col > COL_MAX)) continue;
               // 河界检查（天将不可入河）
-              if (newCells.some(c => isInRiver(c.row))) continue;
+              if (newCells.some(c => isInRiver(c.row, c.col))) continue;
         
               // 是否被己方棋子占据（己方天将不阻挡，包括自己和其他天将）
               if (newCells.some(c => {
@@ -796,7 +822,15 @@
                   if (p.name.startsWith('天将')) return false;
                   return true; // 其他己方棋子阻挡
               })) continue;
-        
+                      // 桥权限：椭圆天将只能走御桥，半血天将无限制
+              if (newCells.some(c => {
+                if (isBridge(c.row, c.col)) {
+                  if (t.isHalved) return false; // 半血可走任意桥
+                  if (isYuBridge(c.col)) return false; // 御桥可走
+                  return true; // 非御桥阻挡
+                }
+                return false;
+              })) continue;
               // 判断是“走两格/日字/隔子跳”中的哪一种
               const isTwoStep = (Math.abs(dr) === 2 && dc === 0) || (Math.abs(dc) === 2 && dr === 0);
               const isKnightJump = (Math.abs(dr) === 2 && Math.abs(dc) === 1) || (Math.abs(dr) === 1 && Math.abs(dc) === 2);
@@ -860,11 +894,13 @@
           }
       });
 
-      giants.filter(g=>g.color===color).forEach(g=>{
+     giants.filter(g=>g.color===color).forEach(g=>{
         for(let dr=-2; dr<=2; dr+=2) for(let dc=-2; dc<=2; dc+=2) {
           if(dr===0 && dc===0) continue;
           const nr=g.topLeftRow+dr, nc=g.topLeftCol+dc;
           if(nr<ROW_MIN||nr+1>ROW_MAX||nc<COL_MIN||nc+1>COL_MAX) continue;
+          // 巨将不能踏上任何桥格
+          if (isBridge(nr, nc) || isBridge(nr, nc+1) || isBridge(nr+1, nc) || isBridge(nr+1, nc+1)) continue;
           moves.push({type:'giant', giant:g, toRow:nr, toCol:nc, isEat:false, pieceName:'巨将'});
         }
       });
@@ -927,7 +963,7 @@
           for (let tr = ROW_MIN; tr <= ROW_MAX; tr++) {
             for (let tc = COL_MIN; tc <= COL_MAX; tc++) {
               if (tr === row && tc === col) continue; // 跳过自身
-              if (isInRiver(tr)) continue; // 不入河（若需入河可删除此行）
+              if (isInRiver(tr, tc)) continue;; // 不入河（若需入河可删除此行）
               const tgt = board[tr - ROW_MIN]?.[tc - COL_MIN];
               if (tgt && tgt.color === color) continue; // 不选己方棋子
               const canEat = tgt && tgt.color === enemy;
@@ -958,7 +994,7 @@
           if(['日','月','卫'].includes(piece.name) && nr!==shore) continue;
           if(['妃'].includes(piece.name)) { if(!tianJiangs.some(t=>t.color===color && t.row===(color===BLACK?0:17))) continue; }
           if(['树'].includes(piece.name)) { if(dr!==0 && ((row<shore && nr<shore)||(row>shore && nr>shore))) continue; if(dc!==0 && ((col<1 && nc<1)||(col>1 && nc>1))) continue; }
-          if(isInRiver(nr)) continue;
+          if(isInRiver(nr, nc)) continue;
           const target=board[nr-ROW_MIN]?.[nc-COL_MIN];
           // 检查目标格是否被敌方天将占据（天将不在 board 数组里）
           const occupiedByOwnTianJiang = tianJiangs.some(tj => tj.color === color && tj.row === nr && (tj.leftCol === nc || tj.rightCol === nc));
@@ -1285,6 +1321,20 @@
       ctx.fillText('楚  河', canvas.width * 0.3, riverCenterY);
       ctx.fillText('汉  界', canvas.width * 0.55, riverCenterY);
       ctx.globalAlpha = 1;
+      // 绘制桥标记
+      bridgeCells.forEach(b => {
+        const x = getX(b.col), y = getY(b.row);
+        ctx.fillStyle = '#b89c6c';
+        ctx.globalAlpha = 0.5;
+        ctx.fillRect(x - LINE_SPAN*0.4, y - LINE_SPAN*0.15, LINE_SPAN*0.8, LINE_SPAN*0.3);
+        ctx.globalAlpha = 1;
+        if (isYuBridge(b.col)) {
+          ctx.fillStyle = '#ffd700';
+          ctx.globalAlpha = 0.6;
+          ctx.fillRect(x - LINE_SPAN*0.35, y - LINE_SPAN*0.1, LINE_SPAN*0.7, LINE_SPAN*0.2);
+          ctx.globalAlpha = 1;
+        }
+      });
       validMoves.forEach(m => {
         const x = getX(m.col), y = getY(m.row);
         ctx.beginPath(); ctx.arc(x, y, LINE_SPAN*0.15, 0, 2*Math.PI);
