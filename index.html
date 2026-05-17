@@ -766,21 +766,6 @@
           } else {
               // 标准走法：横竖一格
               offsets.push([-1,0],[1,0],[0,-1],[0,1]);
-              // 天将跨河跳跃（从河岸直接跳对岸，支持往返）
-            const cr = currentCells[0].row;
-            if (color === BLACK) {
-              if (cr === 6) offsets.push([4, 0]);   // 行6→行10
-              else if (cr === 7) offsets.push([3, 0]); // 行7→行10
-              // 黑方过河后停在行10或行11，可以跳回
-              else if (cr === 10) offsets.push([-3, 0]); // 行10→行7
-              else if (cr === 11) offsets.push([-4, 0]); // 行11→行7
-            } else if (color === RED) {
-              if (cr === 10) offsets.push([-3, 0]);  // 行10→行7 （修正：原 -4 改为 -3）
-              else if (cr === 11) offsets.push([-4, 0]); // 行11→行7
-              // 红方过河后停在行6或行7，可以跳回
-              else if (cr === 6) offsets.push([4, 0]);   // 行6→行10
-              else if (cr === 7) offsets.push([3, 0]);   // 行7→行10
-            }
           
               // 壳棋存在或真将升级（大将）：士线一格
               if (shellAlive || (t.type === '真' && t.isUpgraded)) {
@@ -975,17 +960,7 @@
         }
         else if(piece.name === '画' || piece.name === '促') continue; // 画不能主动移动，促初始不能移动
         else offsets = [[-1,0],[1,0],[0,-1],[0,1]];
-        // ========== 跨河跳跃（所有可过河陆地棋子） ==========
-        const cantCross = ['雷','军师','御','诏','隔','趁','关','上','狐','国象','交','涉'];
-        if (!cantCross.includes(piece.name)) {
-          if (color === BLACK && (row === 6 || row === 7)) {
-            const jumpRow = row + (row === 6 ? 4 : 3); // 6→10, 7→10
-            if (jumpRow >= ROW_MIN && jumpRow <= ROW_MAX) offsets.push([jumpRow - row, 0]);
-          } else if (color === RED && (row === 10 || row === 11)) {
-            const jumpRow = row - (row === 10 ? 3 : 4); // 10→7, 11→7
-            if (jumpRow >= ROW_MIN && jumpRow <= ROW_MAX) offsets.push([jumpRow - row, 0]);
-          }
-        }
+         
         for(let [dr,dc] of offsets) {
           const nr=row+dr, nc=col+dc;
           if(nr<ROW_MIN||nr>ROW_MAX||nc<COL_MIN||nc>COL_MAX) continue;
