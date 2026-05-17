@@ -967,6 +967,9 @@
           if (!offsets.some(([r, c]) => r === -1 && c === 0)) offsets.push([-1, 0]);
         }
         for(let [dr,dc] of offsets) {
+          // 跨河移动强制目标格必须在桥上
+          const crossRiver = (row <= BLACK_SHORE && nr >= RED_SHORE) || (row >= RED_SHORE && nr <= BLACK_SHORE);
+          if (crossRiver && !isBridge(nr, nc)) continue;
           const nr=row+dr, nc=col+dc;
           if(nr<ROW_MIN||nr>ROW_MAX||nc<COL_MIN||nc>COL_MAX) continue;
           if(['雷','军师','御','诏','隔','趁','关','上','狐'].includes(piece.name) && !isOwnHalf(nr, color)) continue;
