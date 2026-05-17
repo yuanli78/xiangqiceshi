@@ -960,7 +960,12 @@
         }
         else if(piece.name === '画' || piece.name === '促') continue; // 画不能主动移动，促初始不能移动
         else offsets = [[-1,0],[1,0],[0,-1],[0,1]];
-         
+        // ========== 桥上纵向移动能力 ==========
+        if (isBridge(row, col)) {
+          // 如果原偏移量中没有上下移动，则添加
+          if (!offsets.some(([r, c]) => r === 1 && c === 0)) offsets.push([1, 0]);
+          if (!offsets.some(([r, c]) => r === -1 && c === 0)) offsets.push([-1, 0]);
+        }
         for(let [dr,dc] of offsets) {
           const nr=row+dr, nc=col+dc;
           if(nr<ROW_MIN||nr>ROW_MAX||nc<COL_MIN||nc>COL_MAX) continue;
