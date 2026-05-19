@@ -1241,7 +1241,7 @@
           const piece = board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN];
           const target = board[move.toRow - ROW_MIN]?.[move.toCol - COL_MIN];
 
-          // ★ 优先处理天将被攻击的情况
+          // 优先检查是否攻击了天将
           const attackedTianJiang = tianJiangs.find(tj =>
             tj.color !== color &&
             ((tj.row === move.toRow && tj.leftCol === move.toCol) ||
@@ -1250,7 +1250,6 @@
 
           if (attackedTianJiang) {
             attackedTianJiang.hp--;
-
             if (attackedTianJiang.hp > 0 && !attackedTianJiang.isHalved) {
               // 半血：退到未被攻击的另一格
               attackedTianJiang.isHalved = true;
@@ -1282,42 +1281,42 @@
               board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
               board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
             }
-           // 检查是否攻击了巨将
-          const attackedGiant = giants.find(g =>
-            g.color !== color &&
-            g.topLeftRow <= move.toRow && move.toRow <= g.topLeftRow + 1 &&
-            g.topLeftCol <= move.toCol && move.toCol <= g.topLeftCol + 1
-          );
-          if (attackedGiant) {
-            attackedGiant.hp--;
-            log(`💢 巨将受创！剩余生命：${attackedGiant.hp}`, 'warn');
-            if (attackedGiant.hp <= 0) {
-              log(`💀 巨将崩毁！`, 'warn');
-              // 清理巨将四格
-              for (let dr = 0; dr < 2; dr++) {
-                for (let dc = 0; dc < 2; dc++) {
-                  const ir = attackedGiant.topLeftRow + dr - ROW_MIN, ic = attackedGiant.topLeftCol + dc - COL_MIN;
-                  if (ir >= 0 && ir < ROWS && ic >= 0 && ic < COLS) {
-                    board[ir][ic] = null;
+
+          // 检查是否攻击了巨将（必须在天将处理之后，用 else if 避免同时触发）
+          } else if (true) { // 用 else if 保持结构，下面定义 attackedGiant
+            const attackedGiant = giants.find(g =>
+              g.color !== color &&
+              g.topLeftRow <= move.toRow && move.toRow <= g.topLeftRow + 1 &&
+              g.topLeftCol <= move.toCol && move.toCol <= g.topLeftCol + 1
+            );
+            if (attackedGiant) {
+              attackedGiant.hp--;
+              log(`💢 巨将受创！剩余生命：${attackedGiant.hp}`, 'warn');
+              if (attackedGiant.hp <= 0) {
+                log(`💀 巨将崩毁！`, 'warn');
+                for (let dr = 0; dr < 2; dr++) {
+                  for (let dc = 0; dc < 2; dc++) {
+                    const ir = attackedGiant.topLeftRow + dr - ROW_MIN, ic = attackedGiant.topLeftCol + dc - COL_MIN;
+                    if (ir >= 0 && ir < ROWS && ic >= 0 && ic < COLS) {
+                      board[ir][ic] = null;
+                    }
                   }
                 }
+                giants.splice(giants.indexOf(attackedGiant), 1);
               }
-              giants.splice(giants.indexOf(attackedGiant), 1);
-            }
-            // 攻击棋子仍然正常移动到目标格
-            board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
-            board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
-          } else {
-            // 普通吃子（原有代码）
-            // 普通吃子
-            if (target && target.color !== color) {
-              if (REVIVABLE_TYPES.includes(target.name)) {
-                const p = target.color === BLACK ? deadPoolBlack : deadPoolRed;
-                p.push(target.name);
+              board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
+            } else {
+              // 普通吃子（无天将、无巨将）
+              if (target && target.color !== color) {
+                if (REVIVABLE_TYPES.includes(target.name)) {
+                  const p = target.color === BLACK ? deadPoolBlack : deadPoolRed;
+                  p.push(target.name);
+                }
               }
+              board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
             }
-            board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
-            board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
           }
         }
         countPieces();
