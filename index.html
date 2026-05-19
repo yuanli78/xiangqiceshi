@@ -295,8 +295,8 @@
         board[r][c] = {name, color};
       }
 
-      giants.push({color: BLACK, topLeftRow: 6, topLeftCol: -5});
-      giants.push({color: RED, topLeftRow: 10, topLeftCol: 7});
+      giants.push({color: BLACK, topLeftRow: 6, topLeftCol: -5, hp: 4});
+      giants.push({color: RED, topLeftRow: 10, topLeftCol: 7, hp: 4});
 
       // 黑方天将真 — 占据两个格子
       tianJiangs.push({ type:'真', color:BLACK, leftCol:4, rightCol:5, row:2, hp:2, isRevealed:false, isUpgraded:false, isHalved:false });
@@ -886,7 +886,18 @@
           if(nr<ROW_MIN||nr+1>ROW_MAX||nc<COL_MIN||nc+1>COL_MAX) continue;
           // 巨将不能踏上任何桥格
           if (isBridge(nr, nc) || isBridge(nr, nc+1) || isBridge(nr+1, nc) || isBridge(nr+1, nc+1)) continue;
-          moves.push({type:'giant', giant:g, toRow:nr, toCol:nc, isEat:false, pieceName:'巨将'});
+          // 计算巨将移动后覆盖的四个格子中敌方棋子数量
+          let enemyCount = 0;
+          for (let dr = 0; dr < 2; dr++) {
+            for (let dc = 0; dc < 2; dc++) {
+              const tr = nr + dr, tc = nc + dc;
+              if (tr < ROW_MIN || tr > ROW_MAX || tc < COL_MIN || tc > COL_MAX) continue;
+              const tp = board[tr - ROW_MIN]?.[tc - COL_MIN];
+              if (tp && tp.color !== color) enemyCount++;
+            }
+          }
+          const canEatGiant = enemyCount > 0 && enemyCount <= 3;
+          moves.push({type:'giant', giant:g, toRow:nr, toCol:nc, isEat: canEatGiant, pieceName:'巨将'});
         }
       });
 
@@ -976,7 +987,10 @@
           if(['交','涉'].includes(piece.name)) { const fwd=color===BLACK?1:-1; if(dr===fwd) continue; }
           if(['日','月','卫'].includes(piece.name) && nr!==shore) continue;
           if(['妃'].includes(piece.name)) { if(!tianJiangs.some(t=>t.color===color && t.row===(color===BLACK?0:17))) continue; }
-          if(['树'].includes(piece.name)) { if(dr!==0 && ((row<shore && nr<shore)||(row>shore && nr>shore))) continue; if(dc!==0 && ((col<1 && nc<1)||(col>1 && nc>1))) continue; }
+          if(['树'].includes(piece.name)) { if(dr!==0 && ((row<shore && nr<shore)||(row>shore && nr>shore))) continue; if(dc!==0 && ((col<1 && nc<1)||(col>1 && nc>1))) continue; } 
+          // 巨将占位：如果目标格属于己方巨将，不可移动；属于敌方巨将，按吃子处理
+          const isOwnGiant = giants.some(g => g.color === color && g.topLeftRow <= nr && nr <= g.topLeftRow+1 && g.topLeftCol <= nc && nc <= g.topLeftCol+1);
+          if (isOwnGiant) continue;
           if(isInRiver(nr, nc)) continue;
           const target=board[nr-ROW_MIN]?.[nc-COL_MIN];
           // 检查目标格是否被敌方天将占据（天将不在 board 数组里）
@@ -1166,17 +1180,64 @@
           t.row = newRow;
           t.leftCol = newLeft;
           t.rightCol = t.isHalved ? newLeft : newRight;
+              
         } else if(move.type==='giant') {
-          const g=move.giant;
-          for(let dr=0; dr<2; dr++) for(let dc=0; dc<2; dc++) {
-            const ir=g.topLeftRow+dr-ROW_MIN, ic=g.topLeftCol+dc-COL_MIN;
-            if(ir>=0&&ir<ROWS&&ic>=0&&ic<COLS){ const t=board[ir][ic]; if(t&&t.color!==color){ if(REVIVABLE_TYPES.includes(t.name)){ const p=t.color===BLACK?deadPoolBlack:deadPoolRed; p.push(t.name); } board[ir][ic]=null; } }
+          const g = move.giant;
+          const oldTR = g.topLeftRow, oldTC = g.topLeftCol;
+          const enemy = color === RED ? BLACK : RED;
+
+          // 清理旧位置的 board 标记
+          for (let dr = 0; dr < 2; dr++) {
+            for (let dc = 0; dc < 2; dc++) {
+              const ir = oldTR + dr - ROW_MIN, ic = oldTC + dc - COL_MIN;
+              if (ir >= 0 && ir < ROWS && ic >= 0 && ic < COLS) {
+                board[ir][ic] = null;
+              }
+            }
           }
-          g.topLeftRow=move.toRow; g.topLeftCol=move.toCol;
-          for(let dr=0; dr<2; dr++) for(let dc=0; dc<2; dc++) {
-            const ir=g.topLeftRow+dr-ROW_MIN, ic=g.topLeftCol+dc-COL_MIN;
-            if(ir>=0&&ir<ROWS&&ic>=0&&ic<COLS){ const t=board[ir][ic]; if(t&&t.color!==color){ if(REVIVABLE_TYPES.includes(t.name)){ const p=t.color===BLACK?deadPoolBlack:deadPoolRed; p.push(t.name); } board[ir][ic]=null; } board[ir][ic]={name:'巨将',color}; }
+
+          // 移动巨将到新位置
+          g.topLeftRow = move.toRow;
+          g.topLeftCol = move.toCol;
+
+          // 收集新位置下的敌方棋子
+          const enemiesUnderGiant = [];
+          for (let dr = 0; dr < 2; dr++) {
+            for (let dc = 0; dc < 2; dc++) {
+              const tr = g.topLeftRow + dr, tc = g.topLeftCol + dc;
+              if (tr < ROW_MIN || tr > ROW_MAX || tc < COL_MIN || tc > COL_MAX) continue;
+              const tp = board[tr - ROW_MIN]?.[tc - COL_MIN];
+              if (tp && tp.color === enemy) {
+                enemiesUnderGiant.push({row: tr, col: tc, piece: tp});
+              }
+            }
           }
+
+          // 吃子：如果敌方棋子数量<=3，全部吃掉；如果>3，随机选3个
+          if (enemiesUnderGiant.length > 0) {
+            const toEat = enemiesUnderGiant.length <= 3 ? enemiesUnderGiant
+              : enemiesUnderGiant.sort(() => Math.random() - 0.5).slice(0, 3);
+            toEat.forEach(({row, col, piece}) => {
+              if (REVIVABLE_TYPES.includes(piece.name)) {
+                const pool = piece.color === BLACK ? deadPoolBlack : deadPoolRed;
+                pool.push(piece.name);
+              }
+              board[row - ROW_MIN][col - COL_MIN] = null;
+            });
+            // 如果吃掉了敌方天将，也需要处理（天将不在 board 上，不会被覆盖到，但巨将不会覆盖天将，所以暂不处理）
+            log(`💥 巨将碾压！吃掉了 ${toEat.length} 枚敌方棋子`, 'info');
+          }
+
+          // 放置巨将标记到新位置
+          for (let dr = 0; dr < 2; dr++) {
+            for (let dc = 0; dc < 2; dc++) {
+              const ir = g.topLeftRow + dr - ROW_MIN, ic = g.topLeftCol + dc - COL_MIN;
+              if (ir >= 0 && ir < ROWS && ic >= 0 && ic < COLS) {
+                board[ir][ic] = {name:'巨将', color: color};
+              }
+            }
+          }
+        }
         } else {
           const piece = board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN];
           const target = board[move.toRow - ROW_MIN]?.[move.toCol - COL_MIN];
@@ -1222,7 +1283,33 @@
               board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
               board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
             }
+           // 检查是否攻击了巨将
+          const attackedGiant = giants.find(g =>
+            g.color !== color &&
+            g.topLeftRow <= move.toRow && move.toRow <= g.topLeftRow + 1 &&
+            g.topLeftCol <= move.toCol && move.toCol <= g.topLeftCol + 1
+          );
+          if (attackedGiant) {
+            attackedGiant.hp--;
+            log(`💢 巨将受创！剩余生命：${attackedGiant.hp}`, 'warn');
+            if (attackedGiant.hp <= 0) {
+              log(`💀 巨将崩毁！`, 'warn');
+              // 清理巨将四格
+              for (let dr = 0; dr < 2; dr++) {
+                for (let dc = 0; dc < 2; dc++) {
+                  const ir = attackedGiant.topLeftRow + dr - ROW_MIN, ic = attackedGiant.topLeftCol + dc - COL_MIN;
+                  if (ir >= 0 && ir < ROWS && ic >= 0 && ic < COLS) {
+                    board[ir][ic] = null;
+                  }
+                }
+              }
+              giants.splice(giants.indexOf(attackedGiant), 1);
+            }
+            // 攻击棋子仍然正常移动到目标格
+            board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+            board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
           } else {
+            // 普通吃子（原有代码）
             // 普通吃子
             if (target && target.color !== color) {
               if (REVIVABLE_TYPES.includes(target.name)) {
@@ -1367,7 +1454,31 @@
           ctx.fillText(`天将${t.type}`,cx,cy);
         }
       });
-      giants.forEach(g=>{ const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; ctx.beginPath(); ctx.arc(cx,cy,LINE_SPAN*0.85,0,2*Math.PI); ctx.fillStyle=g.color===RED?RED_COLOR:BLACK_COLOR; ctx.fill(); ctx.strokeStyle='#ffe0b5'; ctx.lineWidth=3; ctx.stroke(); ctx.fillStyle='#fff'; ctx.font=`bold ${LINE_SPAN*0.5}px KaiTi`; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText('巨将',cx,cy); });
+      giants.forEach(g=>{
+        const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2;
+        // 绘制巨将圆形
+        ctx.beginPath(); ctx.arc(cx,cy,LINE_SPAN*0.85,0,2*Math.PI);
+        ctx.fillStyle=g.color===RED?RED_COLOR:BLACK_COLOR; ctx.fill();
+        ctx.strokeStyle='#ffe0b5'; ctx.lineWidth=3; ctx.stroke();
+        // 巨将文字
+        ctx.fillStyle='#fff'; ctx.font=`bold ${LINE_SPAN*0.5}px KaiTi`; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('巨将',cx,cy);
+        // 血条背景
+        const barW = LINE_SPAN * 1.5;  // 血条宽度
+        const barH = LINE_SPAN * 0.2;  // 血条高度
+        const barX = cx - barW / 2;
+        const barY = cy - LINE_SPAN * 0.85 - barH - 4;  // 血条放在巨将上方
+        ctx.fillStyle = '#555';
+        ctx.fillRect(barX, barY, barW, barH);
+        // 血量填充
+        const hpRatio = Math.max(0, g.hp / 4);
+        ctx.fillStyle = g.hp > 2 ? '#4caf50' : g.hp > 1 ? '#ff9800' : '#f44336';
+        ctx.fillRect(barX, barY, barW * hpRatio, barH);
+        // 血条边框
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barX, barY, barW, barH);
+      });
 
       for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
         const piece=board[r][c]; if(!piece || piece.name==='巨将') continue;
