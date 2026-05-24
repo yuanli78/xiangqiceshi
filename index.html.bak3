@@ -726,9 +726,7 @@
         }
         return false;
     }
-    function generateMoves(color)  {
-      try {
-
+    function generateMoves(color) {
       const moves = [];
       const enemy = color===RED?BLACK:RED;
       const deadPool = color===BLACK ? deadPoolBlack : deadPoolRed;
@@ -1048,8 +1046,6 @@
         }
       }
       return moves;
-    
-      } catch(e) { log(`❌ generateMoves异常: ${e.message}`, 'error'); return []; }
     }
 
     function evaluateMove(move, color) {
@@ -1270,7 +1266,7 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
           g.topLeftCol = move.toCol;
 
           // 收集新位置下的敌方棋子
-                    const enemiesUnderGiant = [];
+          const enemiesUnderGiant = [];
           for (let dr = 0; dr < 2; dr++) {
             for (let dc = 0; dc < 2; dc++) {
               const tr = g.topLeftRow + dr, tc = g.topLeftCol + dc;
@@ -1279,61 +1275,25 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
               if (tp && tp.color === enemy) {
                 enemiesUnderGiant.push({row: tr, col: tc, piece: tp});
               }
-              // 检查敌方天将
-              const underTJ = tianJiangs.find(tj =>
-                tj.color !== color &&
-                ((tj.isHalved && tj.row === tr && tj.leftCol === tc) ||
-                 (!tj.isHalved && tj.row === tr && (tj.leftCol === tc || tj.rightCol === tc)))
-              );
-              if (underTJ && !enemiesUnderGiant.some(e => e.piece === underTJ)) {
-                enemiesUnderGiant.push({row: tr, col: tc, piece: underTJ, isTianJiang: true});
-              }
             }
-          }          // 吃子：如果敌方棋子数量<=3，全部吃掉；如果>3，随机选3个
+          }
+
+          // 吃子：如果敌方棋子数量<=3，全部吃掉；如果>3，随机选3个
           if (enemiesUnderGiant.length > 0) {
             const toEat = enemiesUnderGiant.length <= 3 ? enemiesUnderGiant
               : enemiesUnderGiant.sort(() => Math.random() - 0.5).slice(0, 3);
-            toEat.forEach(({row, col, piece, isTianJiang}) => {
-              if (isTianJiang) {
-                // 天将被碾压：掉血
-                const tj = piece;
-                const attackedCol = col; // 被攻击的列
-                tj.hp--;
-                if (tj.hp > 0 && !tj.isHalved) {
-                  // 半血：缩到未被攻击的另一格
-                  tj.isHalved = true;
-                  const surviveCol = (attackedCol === tj.leftCol) ? tj.rightCol : tj.leftCol;
-                  const oldL = tj.leftCol, oldR = tj.rightCol;
-                  if (board[tj.row - ROW_MIN]?.[oldL - COL_MIN]) {
-                    board[tj.row - ROW_MIN][oldL - COL_MIN] = null;
-                  }
-                  if (board[tj.row - ROW_MIN]?.[oldR - COL_MIN]) {
-                    board[tj.row - ROW_MIN][oldR - COL_MIN] = null;
-                  }
-                  tj.leftCol = surviveCol;
-                  tj.rightCol = surviveCol;
-                  log(`${tj.color === RED ? '红' : '黑'}方天将${tj.type}受创，缩为一格！`, 'warn');
-                } else if (tj.hp <= 0) {
-                  // 死亡
-                  if (!tj.isHalved) {
-                    const otherCol = (attackedCol === tj.leftCol) ? tj.rightCol : tj.leftCol;
-                    if (board[tj.row - ROW_MIN]?.[otherCol - COL_MIN]) {
-                      board[tj.row - ROW_MIN][otherCol - COL_MIN] = null;
-                    }
-                  }
-                  tianJiangs.splice(tianJiangs.indexOf(tj), 1);
-                  log(`${tj.color === RED ? '红' : '黑'}方天将${tj.type}被击杀！`, 'warn');
-                }
-              } else {
-                if (REVIVABLE_TYPES.includes(piece.name)) {
-                  const pool = piece.color === BLACK ? deadPoolBlack : deadPoolRed;
-                  pool.push(piece.name);
-                }
-                board[row - ROW_MIN][col - COL_MIN] = null;
+            toEat.forEach(({row, col, piece}) => {
+              if (REVIVABLE_TYPES.includes(piece.name)) {
+                const pool = piece.color === BLACK ? deadPoolBlack : deadPoolRed;
+                pool.push(piece.name);
               }
+              board[row - ROW_MIN][col - COL_MIN] = null;
             });
+            // 如果吃掉了敌方天将，也需要处理（天将不在 board 上，不会被覆盖到，但巨将不会覆盖天将，所以暂不处理）
             log(`💥 巨将碾压！吃掉了 ${toEat.length} 枚敌方棋子`, 'info');
-          }// 放置巨将标记到新位置
+          }
+
+          // 放置巨将标记到新位置
           for (let dr = 0; dr < 2; dr++) {
             for (let dc = 0; dc < 2; dc++) {
               const ir = g.topLeftRow + dr - ROW_MIN, ic = g.topLeftCol + dc - COL_MIN;
@@ -1394,7 +1354,7 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
               g.topLeftRow <= move.toRow && move.toRow <= g.topLeftRow + 1 &&
               g.topLeftCol <= move.toCol && move.toCol <= g.topLeftCol + 1
             );
-            if (attackedGiant) {
+                        if (attackedGiant) {
               attackedGiant.hp--;
               log(`💢 巨将受创！剩余生命：${attackedGiant.hp}`, 'warn');
               if (attackedGiant.hp <= 0) {
@@ -1732,62 +1692,7 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
         }
       }
       const r=logicRow-ROW_MIN, c=logicCol-COL_MIN; const piece=board[r]?.[c];
-            // 检查普通棋子攻击巨将
-      if (selectedPiece && selectedPiece.type === 'board') {
-        for (const g of giants) {
-          if (g.color !== currentPlayer &&
-              g.topLeftRow <= logicRow && logicRow <= g.topLeftRow + 1 &&
-              g.topLeftCol <= logicCol && logicCol <= g.topLeftCol + 1) {
-            const giantMove = generateMoves(currentPlayer).find(m =>
-              m.type === 'piece' && m.fromRow === selectedPiece.row &&
-              m.fromCol === selectedPiece.col && m.toRow === logicRow &&
-              m.toCol === logicCol
-            );
-            if (giantMove) {
-              if (applyMove(giantMove, currentPlayer)) {
-                currentPlayer = currentPlayer === RED ? BLACK : RED;
-                selectedPiece = null;
-                validMoves = [];
-                dangerMoves = [];
-                drawBoard();
-                statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
-                return;
-              }
-            }
-            break;
-          }
-        }
-      }
-
-      // 检查天将攻击巨将
-      if (selectedPiece && selectedPiece.type === 'tianjiang') {
-        for (const g of giants) {
-          if (g.color !== currentPlayer &&
-              g.topLeftRow <= logicRow && logicRow <= g.topLeftRow + 1 &&
-              g.topLeftCol <= logicCol && logicCol <= g.topLeftCol + 1) {
-            const tj = selectedPiece.tj;
-            const giantMove = generateMoves(currentPlayer).find(m =>
-              m.type === 'tianjiang' && m.tj === tj &&
-              m.toRow === logicRow &&
-              (m.toLeftCol === logicCol || (!tj.isHalved && m.toLeftCol + 1 === logicCol))
-            );
-            if (giantMove) {
-              if (applyMove(giantMove, currentPlayer)) {
-                currentPlayer = currentPlayer === RED ? BLACK : RED;
-                selectedPiece = null;
-                validMoves = [];
-                dangerMoves = [];
-                drawBoard();
-                statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
-                return;
-              }
-            }
-            break;
-          }
-        }
-      }
-
-// 如果已选中己方棋子，且点击的是敌方棋子，优先尝试吃子移动
+      // 如果已选中己方棋子，且点击的是敌方棋子，优先尝试吃子移动
       if (selectedPiece && piece && piece.color !== currentPlayer && piece.name !== '巨将'){
         const move = generateMoves(currentPlayer).find(m => {
           if (m.type === 'piece' && selectedPiece.type === 'board' && m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col && m.toRow === logicRow && m.toCol === logicCol) return true;

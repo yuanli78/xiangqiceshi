@@ -726,9 +726,7 @@
         }
         return false;
     }
-    function generateMoves(color)  {
-      try {
-
+    function generateMoves(color) {
       const moves = [];
       const enemy = color===RED?BLACK:RED;
       const deadPool = color===BLACK ? deadPoolBlack : deadPoolRed;
@@ -1048,8 +1046,6 @@
         }
       }
       return moves;
-    
-      } catch(e) { log(`❌ generateMoves异常: ${e.message}`, 'error'); return []; }
     }
 
     function evaluateMove(move, color) {
@@ -1333,7 +1329,7 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
               }
             });
             log(`💥 巨将碾压！吃掉了 ${toEat.length} 枚敌方棋子`, 'info');
-          }// 放置巨将标记到新位置
+          }放置巨将标记到新位置
           for (let dr = 0; dr < 2; dr++) {
             for (let dc = 0; dc < 2; dc++) {
               const ir = g.topLeftRow + dr - ROW_MIN, ic = g.topLeftCol + dc - COL_MIN;
@@ -1394,7 +1390,7 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
               g.topLeftRow <= move.toRow && move.toRow <= g.topLeftRow + 1 &&
               g.topLeftCol <= move.toCol && move.toCol <= g.topLeftCol + 1
             );
-            if (attackedGiant) {
+                        if (attackedGiant) {
               attackedGiant.hp--;
               log(`💢 巨将受创！剩余生命：${attackedGiant.hp}`, 'warn');
               if (attackedGiant.hp <= 0) {
@@ -1732,62 +1728,7 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
         }
       }
       const r=logicRow-ROW_MIN, c=logicCol-COL_MIN; const piece=board[r]?.[c];
-            // 检查普通棋子攻击巨将
-      if (selectedPiece && selectedPiece.type === 'board') {
-        for (const g of giants) {
-          if (g.color !== currentPlayer &&
-              g.topLeftRow <= logicRow && logicRow <= g.topLeftRow + 1 &&
-              g.topLeftCol <= logicCol && logicCol <= g.topLeftCol + 1) {
-            const giantMove = generateMoves(currentPlayer).find(m =>
-              m.type === 'piece' && m.fromRow === selectedPiece.row &&
-              m.fromCol === selectedPiece.col && m.toRow === logicRow &&
-              m.toCol === logicCol
-            );
-            if (giantMove) {
-              if (applyMove(giantMove, currentPlayer)) {
-                currentPlayer = currentPlayer === RED ? BLACK : RED;
-                selectedPiece = null;
-                validMoves = [];
-                dangerMoves = [];
-                drawBoard();
-                statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
-                return;
-              }
-            }
-            break;
-          }
-        }
-      }
-
-      // 检查天将攻击巨将
-      if (selectedPiece && selectedPiece.type === 'tianjiang') {
-        for (const g of giants) {
-          if (g.color !== currentPlayer &&
-              g.topLeftRow <= logicRow && logicRow <= g.topLeftRow + 1 &&
-              g.topLeftCol <= logicCol && logicCol <= g.topLeftCol + 1) {
-            const tj = selectedPiece.tj;
-            const giantMove = generateMoves(currentPlayer).find(m =>
-              m.type === 'tianjiang' && m.tj === tj &&
-              m.toRow === logicRow &&
-              (m.toLeftCol === logicCol || (!tj.isHalved && m.toLeftCol + 1 === logicCol))
-            );
-            if (giantMove) {
-              if (applyMove(giantMove, currentPlayer)) {
-                currentPlayer = currentPlayer === RED ? BLACK : RED;
-                selectedPiece = null;
-                validMoves = [];
-                dangerMoves = [];
-                drawBoard();
-                statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
-                return;
-              }
-            }
-            break;
-          }
-        }
-      }
-
-// 如果已选中己方棋子，且点击的是敌方棋子，优先尝试吃子移动
+      // 如果已选中己方棋子，且点击的是敌方棋子，优先尝试吃子移动
       if (selectedPiece && piece && piece.color !== currentPlayer && piece.name !== '巨将'){
         const move = generateMoves(currentPlayer).find(m => {
           if (m.type === 'piece' && selectedPiece.type === 'board' && m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col && m.toRow === logicRow && m.toCol === logicCol) return true;
