@@ -94,7 +94,7 @@
     let currentPlayer = RED;
     let autoRunning = false, autoTimer = null;
     let deadPoolBlack = [], deadPoolRed = [];
-    const REVIVABLE_TYPES = ['车','马','炮','驼','骡','麒','飞车','战车','飞马','战马','飞炮','战炮','抛石器','悬','翔','追','截','轰','虎'];
+    const REVIVABLE_TYPES = ['车','马','炮','驼','骡','麒','飞车','战车','飞马','战马','飞炮','战炮','抛石器','悬','翔','追','截','轰'];
     const medicalBlack = [{row:1,col:-18},{row:1,col:-16},{row:1,col:-14}];
     const medicalRed = [{row:13,col:16},{row:13,col:18},{row:13,col:20}];
 
@@ -575,13 +575,21 @@
          return true;
        }
      }
-     // 炮类隔子吃
+     // 炮类隔子吃（巨将不能作为炮架）
      if (['炮','飞炮','战炮','抛石器','异型炮','暗','趁','欲','砖'].includes(name)) {
        if (dr === 0 && dc !== 0) {
          let cnt = 0;
          const step = dc > 0 ? 1 : -1;
          for (let c = fromCol + step; c !== toCol; c += step) {
-           if (board[fromRow-ROW_MIN]?.[c-COL_MIN]) cnt++;
+           const midPiece = board[fromRow-ROW_MIN]?.[c-COL_MIN];
+           if (midPiece) {
+             // 巨将不能作为炮架 - 检查该格是否属于巨将区域
+             const isGiantCell = giants.some(g =>
+               fromRow >= g.topLeftRow && fromRow <= g.topLeftRow + 1 &&
+               c >= g.topLeftCol && c <= g.topLeftCol + 1
+             );
+             if (!isGiantCell) cnt++;
+           }
          }
          if (cnt === 1) return true;
        }
@@ -589,19 +597,19 @@
          let cnt = 0;
          const step = dr > 0 ? 1 : -1;
          for (let r = fromRow + step; r !== toRow; r += step) {
-           if (board[r-ROW_MIN]?.[fromCol-COL_MIN]) cnt++;
+           const midPiece = board[r-ROW_MIN]?.[fromCol-COL_MIN];
+           if (midPiece) {
+             // 巨将不能作为炮架 - 检查该格是否属于巨将区域
+             const isGiantCell = giants.some(g =>
+               r >= g.topLeftRow && r <= g.topLeftRow + 1 &&
+               fromCol >= g.topLeftCol && fromCol <= g.topLeftCol + 1
+             );
+             if (!isGiantCell) cnt++;
+           }
          }
          if (cnt === 1) return true;
        }
-     }
-     // 马类日字
-     if (['马','飞马','战马','骡','异型马','妃'].includes(name)) {
-       if ((Math.abs(dr) === 2 && Math.abs(dc) === 1) || (Math.abs(dr) === 1 && Math.abs(dc) === 2)) {
-         // 简单忽略蹩腿，这里只判断攻击可能
-         return true;
-       }
-     }
-     // 斜线兵种及士类
+     }    // 斜线兵种及士类
      if (['士','飞士','战士','士卒','影士','象','飞象','战象','国象','鹿','驼','悬','蝉','后','天兵','牵','混','笑','瞒','狐'].includes(name)) {
        if (Math.abs(dr) === Math.abs(dc) && dr !== 0) {
          const stepR = dr > 0 ? 1 : -1, stepC = dc > 0 ? 1 : -1;
@@ -884,19 +892,32 @@
           if(dr===0 && dc===0) continue;
           const nr=g.topLeftRow+dr, nc=g.topLeftCol+dc;
           if(nr<ROW_MIN||nr+1>ROW_MAX||nc<COL_MIN||nc+1>COL_MAX) continue;
-          // 巨将不能踏上任何桥格
+          // 巨将不能踏上任何桥格（检查四角）
           if (isBridge(nr, nc) || isBridge(nr, nc+1) || isBridge(nr+1, nc) || isBridge(nr+1, nc+1)) continue;
-          // 计算巨将移动后覆盖的四个格子中敌方棋子数量
-          let enemyCount = 0;
-          for (let dr = 0; dr < 2; dr++) {
-            for (let dc = 0; dc < 2; dc++) {
-              const tr = nr + dr, tc = nc + dc;
-              if (tr < ROW_MIN || tr > ROW_MAX || tc < COL_MIN || tc > COL_MAX) continue;
+          // 检查目标四格内是否有己方棋子
+          let hasOwnPiece = false;
+          for (let dr2 = 0; dr2 < 2 && !hasOwnPiece; dr2++) {
+            for (let dc2 = 0; dc2 < 2 && !hasOwnPiece; dc2++) {
+              const tr = nr + dr2, tc = nc + dc2;
               const tp = board[tr - ROW_MIN]?.[tc - COL_MIN];
-              if (tp && tp.color !== color) enemyCount++;
+              if (tp && tp.color === color) hasOwnPiece = true;
+              if (tianJiangs.some(tj => tj.color === color && tj.row === tr && (tj.leftCol === tc || tj.rightCol === tc))) hasOwnPiece = true;
+              if (stackedDancers.some(d => d.color === color && d.row === tr && d.col === tc)) hasOwnPiece = true;
             }
           }
-          const canEatGiant = enemyCount > 0 && enemyCount <= 3;
+          if (hasOwnPiece) continue;
+          // 计算巨将移动后覆盖的四格内敌方棋子数量
+          let enemyCount = 0;
+          for (let dr2 = 0; dr2 < 2; dr2++) {
+            for (let dc2 = 0; dc2 < 2; dc2++) {
+              const tr = nr + dr2, tc = nc + dc2;
+              const tp = board[tr - ROW_MIN]?.[tc - COL_MIN];
+              if (tp && tp.color !== color) enemyCount++;
+              // 敌方天将也算
+              if (tianJiangs.some(tj => tj.color !== color && tj.row === tr && (tj.leftCol === tc || tj.rightCol === tc))) enemyCount++;
+            }
+          }
+          const canEatGiant = enemyCount > 0;
           moves.push({type:'giant', giant:g, toRow:nr, toCol:nc, isEat: canEatGiant, pieceName:'巨将'});
         }
       });
@@ -1515,7 +1536,7 @@
       if (logicRow<ROW_MIN||logicRow>ROW_MAX||logicCol<COL_MIN||logicCol>COL_MAX) return;
 
       // 巨将选择
-      for (const g of giants) { const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if ((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2) { selectedPiece={type:'giant', topLeftRow:g.topLeftRow, topLeftCol:g.topLeftCol, color:g.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='giant'&&m.giant.topLeftRow===g.topLeftRow&&m.giant.topLeftCol===g.topLeftCol).map(m=>({row:m.toRow,col:m.toCol})); dangerMoves=[]; drawBoard(); return; } }
+      for (const g of giants) { const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if ((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2) { selectedPiece={type:'giant', topLeftRow:g.topLeftRow, topLeftCol:g.topLeftCol, color:g.color}; const giantMoves=generateMoves(currentPlayer).filter(m=>m.type==='giant'&&m.giant.topLeftRow===g.topLeftRow&&m.giant.topLeftCol===g.topLeftCol); validMoves=[]; giantMoves.forEach(m=>{validMoves.push({row:m.toRow,col:m.toCol});validMoves.push({row:m.toRow,col:m.toCol+1});validMoves.push({row:m.toRow+1,col:m.toCol});validMoves.push({row:m.toRow+1,col:m.toCol+1});}); dangerMoves=[]; drawBoard(); return; } }
       // 叠舞选择
       for (const d of stackedDancers) { if(d.row===logicRow && d.col===logicCol) { selectedPiece={type:'stackedDancer', dancer:d, color:d.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='stackedDancer'&&m.dancer===d).map(m=>({row:m.toRow,col:m.toCol})); dangerMoves=[]; drawBoard(); return; } }
       // ★ 优先处理天将互吃（必须在 piece 取 null 之前）
