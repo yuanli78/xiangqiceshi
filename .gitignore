@@ -1,0 +1,9 @@
+node_modules/
+*.bak
+*.bak2
+*.orig_working
+*.full_backup
+*.full_backup2
+*.pre_ap
+*.all_in_one
+.DS_Store
