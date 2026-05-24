@@ -1187,6 +1187,40 @@
                 }
                 hasEaten = true;
               }
+              // 天将攻击巨将
+              const attackedGiantForTJ = giants.find(g =>
+                g.color === enemy &&
+                g.topLeftRow <= c.row && c.row <= g.topLeftRow + 1 &&
+                g.topLeftCol <= c.col && c.col <= g.topLeftCol + 1
+              );
+              if (attackedGiantForTJ) {
+                const tjLeft = t.leftCol, tjRight = t.rightCol;
+                const giantLeft = attackedGiantForTJ.topLeftCol, giantRight = attackedGiantForTJ.topLeftCol + 1;
+                const isAligned = (tjLeft === giantLeft && tjRight === giantRight);
+                const dr = Math.abs(c.row - t.row);
+                const isVerticalAdjacent = (dr === 1);
+                if (isAligned && isVerticalAdjacent) {
+                  attackedGiantForTJ.hp -= 2;
+                  log(`⚔️ 天将强杀巨将！2点伤害！剩余生命：${attackedGiantForTJ.hp}`, "warn");
+                } else {
+                  attackedGiantForTJ.hp--;
+                  log(`💢 天将攻击巨将，1点伤害！剩余生命：${attackedGiantForTJ.hp}`, "info");
+                }
+                if (attackedGiantForTJ.hp <= 0) {
+                  log(`💀 巨将崩毁！`, "warn");
+                  for (let dr = 0; dr < 2; dr++) {
+                    for (let dc = 0; dc < 2; dc++) {
+                      const ir = attackedGiantForTJ.topLeftRow + dr - ROW_MIN, ic = attackedGiantForTJ.topLeftCol + dc - COL_MIN;
+                      if (ir >= 0 && ir < ROWS && ic >= 0 && ic < COLS) {
+                        board[ir][ic] = null;
+                      }
+                    }
+                  }
+                  giants.splice(giants.indexOf(attackedGiantForTJ), 1);
+                }
+                hasEaten = true;
+              }
+
             });
 
             // 真将首次吃子升级（只要吃到了棋子，无论类型）
@@ -1387,18 +1421,18 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
               board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
             }
 
-          // 检查是否攻击了巨将（必须在天将处理之后，用 else if 避免同时触发）
-          } else if (true) { // 用 else if 保持结构，下面定义 attackedGiant
+          // 检查是否攻击了巨将（必须同时检查天将和巨将）
+          } else {
             const attackedGiant = giants.find(g =>
               g.color !== color &&
               g.topLeftRow <= move.toRow && move.toRow <= g.topLeftRow + 1 &&
               g.topLeftCol <= move.toCol && move.toCol <= g.topLeftCol + 1
             );
-            if (attackedGiant) {
+                        if (attackedGiant) {
               attackedGiant.hp--;
-              log(`💢 巨将受创！剩余生命：${attackedGiant.hp}`, 'warn');
+              log(`💢 巨将受创！剩余生命：${attackedGiant.hp}`, "warn");
               if (attackedGiant.hp <= 0) {
-                log(`💀 巨将崩毁！`, 'warn');
+                log(`💀 巨将崩毁！`, "warn");
                 for (let dr = 0; dr < 2; dr++) {
                   for (let dc = 0; dc < 2; dc++) {
                     const ir = attackedGiant.topLeftRow + dr - ROW_MIN, ic = attackedGiant.topLeftCol + dc - COL_MIN;
@@ -1408,65 +1442,11 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
                   }
                 }
                 giants.splice(giants.indexOf(attackedGiant), 1);
-                // 巨将死亡，攻击棋子留在目标格
-                board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
-                board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
-              } else {
-                // 巨将未死：攻击棋子被弹飞
-                const fromR = move.fromRow, fromC = move.fromCol;
-                const toR = move.toRow, toC = move.toCol;
-                const gCenterRow = attackedGiant.topLeftRow + 0.5;
-                const gCenterCol = attackedGiant.topLeftCol + 0.5;
-                const vecRow = fromR - gCenterRow;
-                const vecCol = fromC - gCenterCol;
-                const dirRow = vecRow === 0 ? 0 : (vecRow > 0 ? 1 : -1);
-                const dirCol = vecCol === 0 ? 0 : (vecCol > 0 ? 1 : -1);
-                let foundSafe = false;
-                let landRow = fromR, landCol = fromC;
-                // 沿反方向寻找远离巨将的最近空位
-                for (let dist = 1; dist <= 6; dist++) {
-                  const tryRow = fromR + dirRow * dist;
-                  const tryCol = fromC + dirCol * dist;
-                  if (tryRow < ROW_MIN || tryRow > ROW_MAX || tryCol < COL_MIN || tryCol > COL_MAX) break;
-                  const inGiant = tryRow >= attackedGiant.topLeftRow && tryRow <= attackedGiant.topLeftRow + 1 &&
-                                  tryCol >= attackedGiant.topLeftCol && tryCol <= attackedGiant.topLeftCol + 1;
-                  if (inGiant) continue;
-                  const tgt = board[tryRow - ROW_MIN]?.[tryCol - COL_MIN];
-                  if (!tgt) {
-                    landRow = tryRow; landCol = tryCol; foundSafe = true;
-                    break;
-                  }
-                }
-                if (!foundSafe) {
-                  const inOrigGiant = fromR >= attackedGiant.topLeftRow && fromR <= attackedGiant.topLeftRow + 1 &&
-                                      fromC >= attackedGiant.topLeftCol && fromC <= attackedGiant.topLeftCol + 1;
-                  if (!inOrigGiant && !board[fromR - ROW_MIN]?.[fromC - COL_MIN]) {
-                    landRow = fromR; landCol = fromC; foundSafe = true;
-                  } else {
-                    for (let rad = 1; rad <= 4 && !foundSafe; rad++) {
-                      for (let dr2 = -rad; dr2 <= rad && !foundSafe; dr2++) {
-                        for (let dc2 = -rad; dc2 <= rad && !foundSafe; dc2++) {
-                          if (Math.abs(dr2) !== rad && Math.abs(dc2) !== rad) continue;
-                          const tryRow = fromR + dr2;
-                          const tryCol = fromC + dc2;
-                          if (tryRow < ROW_MIN || tryRow > ROW_MAX || tryCol < COL_MIN || tryCol > COL_MAX) continue;
-                          const inGiant2 = tryRow >= attackedGiant.topLeftRow && tryRow <= attackedGiant.topLeftRow + 1 &&
-                                           tryCol >= attackedGiant.topLeftCol && tryCol <= attackedGiant.topLeftCol + 1;
-                          if (inGiant2) continue;
-                          if (!board[tryRow - ROW_MIN]?.[tryCol - COL_MIN]) {
-                            landRow = tryRow; landCol = tryCol; foundSafe = true;
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-                board[toR - ROW_MIN][toC - COL_MIN] = null;
-                board[landRow - ROW_MIN][landCol - COL_MIN] = piece;
-                board[fromR - ROW_MIN][fromC - COL_MIN] = null;
-                log(`💨 ${piece.name} 被弹飞！`, 'info');
               }
-            } else {
+              // 攻击棋子被弹飞
+              board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = null;
+              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = piece;
+              log(`💨 ${piece.name} 被弹飞！`, "info");} else {
               // 普通吃子（无天将、无巨将）
               if (target && target.color !== color) {
                 if (REVIVABLE_TYPES.includes(target.name)) {
