@@ -1426,7 +1426,7 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
                 board[fromR - ROW_MIN][fromC - COL_MIN] = null;
                 log(`💨 ${piece.name} 被弹飞！`, 'info');
               }
-            } else { else {
+            } else {
               // 普通吃子（无天将、无巨将）
               if (target && target.color !== color) {
                 if (REVIVABLE_TYPES.includes(target.name)) {
