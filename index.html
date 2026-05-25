@@ -1036,7 +1036,7 @@
           const occupiedByEnemyTianJiang = tianJiangs.some(tj => tj.color === enemy && tj.row === nr && (tj.leftCol === nc || tj.rightCol === nc));
           if(target && target.color===color) continue;
           if(occupiedByOwnTianJiang) continue; // 己方天将挡路，不能走
-          let           // 如果目标格是虚影巨将，不能吃
+                    // 如果目标格是虚影巨将，不能吃
           const targetIsPhasingGiant = giants.some(g =>
             g.color !== color && phasingGiants.some(pg => pg.giant === g) &&
             g.topLeftRow <= nr && nr <= g.topLeftRow+1 &&
