@@ -124,6 +124,11 @@
     }
     let validMoves = [];
     let dangerMoves = [];   // 存储移动后会被吃的目标格子
+    let fireCells = [];  // 燃烧弹着火格 {row, col, turnsLeft: 3}
+    let ammoMode = {};  // { color: { activePiece: {row, col}, type: "normal"/"shrapnel"/"explosive"/"chain"/"fire" } }
+    const AMMO_TYPES = ["normal", "shrapnel", "explosive", "chain", "fire"];
+    const AMMO_NAMES = { normal: "普通弹", shrapnel: "霰弹", explosive: "爆炸弹", chain: "链弹", fire: "燃烧弹" };
+    let currentAmmoIndex = 0;  // cycle through ammo types
     let historyStack = [];          // 历史记录栈
     const MAX_HISTORY = 50;        // 最多悔棋步数
     
@@ -314,6 +319,9 @@
         const r = row-ROW_MIN, c = col-COL_MIN;
         if(board[r][c]) console.warn(`覆盖 (${row},${col})`);
         board[r][c] = {name, color};
+      // 初始化弹药模式
+      ammoMode[RED] = { type: 'normal' };
+      ammoMode[BLACK] = { type: 'normal' };
       }
 
       giants.push({color: BLACK, topLeftRow: 6, topLeftCol: -5, hp: 4});
@@ -681,7 +689,6 @@ function tianJiangHasValidMove(tj, color) {
          const step = dr > 0 ? 1 : -1;
          for (let r = fromRow + step; r !== toRow; r += step) if (board[r-ROW_MIN]?.[fromCol-COL_MIN]) return false;
          return true;
-       }
      }
      // 炮类隔子吃（巨将不能作为炮架）
      if (['炮','飞炮','战炮','抛石器','异型炮','暗','趁','欲','砖'].includes(name)) {
@@ -752,6 +759,54 @@ function tianJiangHasValidMove(tj, color) {
      // 其他棋子暂时认为不能远距离攻击
       // 连环马保护区：目标在连环马保护区内则不能吃
       if (isInChainHorseZone(toRow, toCol, piece.color)) return true;
+      // 弹药系统：炮的弹药切换攻击模式
+      if (['炮','飞炮'].includes(name) && ammoMode[piece.color]) {
+        const mode = ammoMode[piece.color];
+        if (mode.type === 'shrapnel') {
+          const fwd = piece.color === RED ? -1 : 1;
+          if (dr === fwd && Math.abs(dc) <= 1) return true;
+          if (dr === 2*fwd && Math.abs(dc) <= 1) return true;
+          if (dr === 3*fwd && dc === 0) return true;
+        }
+        if (mode.type === 'explosive') {
+          if (dr === 0 && dc !== 0) {
+            let cnt = 0; const step = dc > 0 ? 1 : -1;
+            for (let c = fromCol + step; c !== toCol; c += step) { if (board[fromRow-ROW_MIN]?.[c-COL_MIN]) cnt++; }
+            if (cnt === 1) return true;
+          }
+          if (dc === 0 && dr !== 0) {
+            let cnt = 0; const step = dr > 0 ? 1 : -1;
+            for (let r = fromRow + step; r !== toRow; r += step) { if (board[r-ROW_MIN]?.[fromCol-COL_MIN]) cnt++; }
+            if (cnt === 1) return true;
+          }
+        }
+        if (mode.type === 'chain') {
+          if (dr === 0 && dc !== 0) {
+            const step = dc > 0 ? 1 : -1; let found = false;
+            for (let c = fromCol + step; c !== toCol; c += step) {
+              if (board[fromRow-ROW_MIN]?.[c-COL_MIN]) { if (!found) found = true; else { return true; } }
+            }
+          }
+          if (dc === 0 && dr !== 0) {
+            const step = dr > 0 ? 1 : -1; let found = false;
+            for (let r = fromRow + step; r !== toRow; r += step) {
+              if (board[r-ROW_MIN]?.[fromCol-COL_MIN]) { if (!found) found = true; else { return true; } }
+            }
+          }
+        }
+        if (mode.type === 'fire') {
+          if (dr === 0 && dc !== 0) {
+            let cnt = 0; const step = dc > 0 ? 1 : -1;
+            for (let c = fromCol + step; c !== toCol; c += step) { if (board[fromRow-ROW_MIN]?.[c-COL_MIN]) cnt++; }
+            if (cnt === 1) return true;
+          }
+          if (dc === 0 && dr !== 0) {
+            let cnt = 0; const step = dr > 0 ? 1 : -1;
+            for (let r = fromRow + step; r !== toRow; r += step) { if (board[r-ROW_MIN]?.[fromCol-COL_MIN]) cnt++; }
+            if (cnt === 1) return true;
+          }
+        }
+      }
      return false;
    }
 
@@ -1060,6 +1115,7 @@ function tianJiangHasValidMove(tj, color) {
         else if(['车','飞车','战车','异型车','诏','借','调','擒','隔','声','指','苦','围','人','以','打','柱','远','主','釜'].includes(piece.name)) {
           for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
         } else if(['炮','飞炮','战炮','抛石器','异型炮','欲','趁','虎','暗','空','砖','虢'].includes(piece.name)) {
+        // 弹药系统：炮的弹药切换走法（普通走法不变）
           for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
         } else if(['兵','重兵','丁','勇','步','步兵','烈','美','假','妃','关','上','畈','蛇'].includes(piece.name)) {
           offsets = [[-1,0],[1,0],[0,-1],[0,1]];
@@ -1527,17 +1583,125 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
           const piece = board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN];
           const target = board[move.toRow - ROW_MIN]?.[move.toCol - COL_MIN];
 
-        // 异将王车移位：与己方非王棋子交换位置
-        if (piece && piece.name === '异型将' && target && target.color === color &&
-            target.name !== '巨将' && !target.name.startsWith('天将') && target.name !== '异型将') {
-          board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
-          board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = target;
-          log('🔄 异将王车移位：与 ' + target.name + ' 交换位置', 'info');
-          countPieces();
-          if (checkGameEnd()) return true;
-          return true;
-        }
+          // 异将王车移位：与己方非王棋子交换位置
+          if (piece && piece.name === '异型将' && target && target.color === color &&
+              target.name !== '巨将' && !target.name.startsWith('天将') && target.name !== '异型将') {
+            board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+            board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = target;
+            log('🔄 异将王车移位：与 ' + target.name + ' 交换位置', 'info');
+            countPieces();
+            if (checkGameEnd()) return true;
+            return true;
+          }
 
+          // 弹药效果：燃烧弹着火
+          if (piece && (piece.name === '炮' || piece.name === '飞炮') && ammoMode[color] && ammoMode[color].type === 'fire') {
+            fireCells.push({row: move.toRow, col: move.toCol, turnsLeft: 3, color: color});
+            log('🔥 燃烧弹点火！目标格将在3回合内燃烧', 'warn');
+          }
+          // 弹药效果：爆炸弹范围伤害
+          if (piece && (piece.name === '炮' || piece.name === '飞炮') && ammoMode[color] && ammoMode[color].type === 'explosive' && target && target.color !== color) {
+            for (let dr = -1; dr <= 1; dr++) {
+              for (let dc = -1; dc <= 1; dc++) {
+                if (dr === 0 && dc === 0) continue;
+                const er = move.toRow + dr, ec = move.toCol + dc;
+                if (er < ROW_MIN || er > ROW_MAX || ec < COL_MIN || ec > COL_MAX) continue;
+                const ep = board[er - ROW_MIN]?.[ec - COL_MIN];
+                if (ep && ep.color !== color) {
+                  if (REVIVABLE_TYPES.includes(ep.name)) {
+                    const pool = ep.color === BLACK ? deadPoolBlack : deadPoolRed;
+                    pool.push(ep.name);
+                  }
+                  board[er - ROW_MIN][ec - COL_MIN] = null;
+                  log('💥 爆炸弹波及 ' + ep.name, 'warn');
+                }
+              }
+            }
+          }
+          // 弹药模式：使用后切回普通弹
+          if (piece && (piece.name === '炮' || piece.name === '飞炮') && ammoMode[color] && ammoMode[color].type !== 'normal') {
+            ammoMode[color] = { type: 'normal' };
+            log('🔫 弹药已用，切回普通弹', 'info');
+          }
+
+          // 1. 优先检查是否攻击了天将
+          const attackedTianJiang = tianJiangs.find(tj =>
+            tj.color !== color &&
+            ((tj.row === move.toRow && tj.leftCol === move.toCol) ||
+             (tj.row === move.toRow && tj.rightCol === move.toCol))
+          );
+
+          if (attackedTianJiang) {
+            attackedTianJiang.hp--;
+            if (attackedTianJiang.hp > 0 && !attackedTianJiang.isHalved) {
+              attackedTianJiang.isHalved = true;
+              const surviveCol = (move.toCol === attackedTianJiang.leftCol) ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
+              const oldL = attackedTianJiang.leftCol, oldR = attackedTianJiang.rightCol;
+              if (board[attackedTianJiang.row - ROW_MIN]?.[oldL - COL_MIN]) {
+                board[attackedTianJiang.row - ROW_MIN][oldL - COL_MIN] = null;
+              }
+              if (board[attackedTianJiang.row - ROW_MIN]?.[oldR - COL_MIN]) {
+                board[attackedTianJiang.row - ROW_MIN][oldR - COL_MIN] = null;
+              }
+              attackedTianJiang.leftCol = surviveCol;
+              attackedTianJiang.rightCol = surviveCol;
+              board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
+              log(`${attackedTianJiang.color === RED ? '红' : '黑'}方天将${attackedTianJiang.type}受创，缩为一格！`, 'warn');
+            } else if (attackedTianJiang.hp <= 0) {
+              log(`${attackedTianJiang.color === RED ? '红' : '黑'}方天将${attackedTianJiang.type}被击杀！`, 'warn');
+              if (!attackedTianJiang.isHalved) {
+                const otherCol = (move.toCol === attackedTianJiang.leftCol) ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
+                if (board[attackedTianJiang.row - ROW_MIN]?.[otherCol - COL_MIN]) {
+                  board[attackedTianJiang.row - ROW_MIN][otherCol - COL_MIN] = null;
+                }
+              }
+              tianJiangs.splice(tianJiangs.indexOf(attackedTianJiang), 1);
+              board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
+            }
+
+          // 2. 检查是否攻击了巨将
+          const attackedGiant = giants.find(g =>
+            g.color !== color &&
+            g.topLeftRow <= move.toRow && move.toRow <= g.topLeftRow + 1 &&
+            g.topLeftCol <= move.toCol && move.toCol <= g.topLeftCol + 1
+          );
+          if (attackedGiant) {
+            attackedGiant.hp--;
+            log('💢 巨将受创！剩余生命：' + attackedGiant.hp, 'warn');
+            if (attackedGiant.hp <= 0) {
+              log('💀 巨将崩毁！', 'warn');
+              for (let dr = 0; dr < 2; dr++) {
+                for (let dc = 0; dc < 2; dc++) {
+                  const ir = attackedGiant.topLeftRow + dr - ROW_MIN, ic = attackedGiant.topLeftCol + dc - COL_MIN;
+                  if (ir >= 0 && ir < ROWS && ic >= 0 && ic < COLS) board[ir][ic] = null;
+                }
+              }
+              giants.splice(giants.indexOf(attackedGiant), 1);
+              const pgIdx = phasingGiants.findIndex(pg => pg.giant === attackedGiant);
+              if (pgIdx > -1) phasingGiants.splice(pgIdx, 1);
+            } else {
+              if (!phasingGiants.some(pg => pg.giant === attackedGiant)) {
+                phasingGiants.push({giant: attackedGiant, turnsLeft: 3});
+                log('👻 巨将进入虚影状态！3回合内无法被攻击。', 'info');
+              }
+            }
+            board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+            board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
+
+          // 3. 普通吃子
+          } else {
+            if (target && target.color !== color) {
+              if (REVIVABLE_TYPES.includes(target.name)) {
+                const p = target.color === BLACK ? deadPoolBlack : deadPoolRed;
+                p.push(target.name);
+              }
+            }
+            board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+            board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
+          }
+          }
           // 优先检查是否攻击了天将
           const attackedTianJiang = tianJiangs.find(tj =>
             tj.color !== color &&
@@ -1669,6 +1833,12 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
     drawBoard();
   });
 
+    document.getElementById("ammoBtn").addEventListener("click", function() {
+      currentAmmoIndex = (currentAmmoIndex + 1) % AMMO_TYPES.length;
+      const type = AMMO_TYPES[currentAmmoIndex];
+      log('🔫 弹药切换: ' + AMMO_NAMES[type], 'info');
+      document.getElementById("ammoBtn").textContent = "弹药: " + AMMO_NAMES[type];
+    });
     document.getElementById('undoBtn').addEventListener('click', undoMove);
     
     function drawBoard() {
