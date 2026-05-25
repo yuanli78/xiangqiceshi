@@ -1,0 +1,4 @@
+node_modules/
+tools/node_modules/
+*.js
+!_apply_fix.js
