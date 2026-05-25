@@ -512,6 +512,38 @@
       if (allMoves.length === 0) {
         const general = currentPlayer === RED ? redZhen : blackZhen;
         if (!general) return false;
+        // 检查被将的是真将还是卫
+        const inCheckTJ = tianJiangs.filter(t => t.color === currentPlayer && isTianJiangInCheck(t));
+        const zhenInCheck = inCheckTJ.some(t => t.type === '真');
+        const weiInCheck = inCheckTJ.some(t => t.type === '卫');
+        if (weiInCheck && !zhenInCheck) {
+          // 仅有卫被将→强制卫现身，移除卫，游戏继续
+          if (!weiInCheck[0].isRevealed) revealTianJiangs(currentPlayer);
+          const wei = inCheckTJ.find(t => t.type === '卫');
+          if (wei) {
+            log((currentPlayer === RED ? '红' : '黑') + '方天将卫被将死，卫被移除！', 'warn');
+            const cells = wei.isHalved ? [{row: wei.row, col: wei.leftCol}] : [{row: wei.row, col: wei.leftCol}, {row: wei.row, col: wei.rightCol}];
+            cells.forEach(c => { if (board[c.row - ROW_MIN]?.[c.col - COL_MIN]) board[c.row - ROW_MIN][c.col - COL_MIN] = null; });
+            tianJiangs.splice(tianJiangs.indexOf(wei), 1);
+            return false;
+          }
+        }
+        return announceWinner(currentPlayer === RED ? BLACK : RED, inCheck ? '将死' : '困毙');
+      }
+      return false;
+    }
+
+    function _checkGameEnd() {
+      const redZhen = tianJiangs.find(t => t.type === '真' && t.color === RED);
+      const blackZhen = tianJiangs.find(t => t.type === '真' && t.color === BLACK);
+      if (!redZhen) return announceWinner(BLACK, '红方天将真被消灭');
+      if (!blackZhen) return announceWinner(RED, '黑方天将真被消灭');
+
+      // 获取当前玩家的所有合法移动
+      const allMoves = generateMoves(currentPlayer);
+      if (allMoves.length === 0) {
+        const general = currentPlayer === RED ? redZhen : blackZhen;
+        if (!general) return false;
         const inCheck = isTianJiangInCheck(general);
         return announceWinner(currentPlayer === RED ? BLACK : RED, inCheck ? '将死' : '困毙');
       }
@@ -739,6 +771,11 @@
         }
         return false;
     }
+    function revealTianJiangs(color) {
+  tianJiangs.filter(t => t.color === color).forEach(t => { t.isRevealed = true; });
+  log("" + (color === RED ? '红' : '黑') + "方天将现身！真伪明示！", 'warn');
+}
+
     function generateMoves(color)  {
       try {
 
@@ -1584,6 +1621,12 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
     document.getElementById('autoPlayBtn').addEventListener('click', startAuto);
     document.getElementById('pauseBtn').addEventListener('click', stopAuto);
     document.getElementById('resetBtn').addEventListener('click', resetAndCenter);
+    document.getElementById('revealBtn').addEventListener('click', function() {
+    if (currentPlayer === RED) revealTianJiangs(RED);
+    else revealTianJiangs(BLACK);
+    drawBoard();
+  });
+
     document.getElementById('undoBtn').addEventListener('click', undoMove);
     
     function drawBoard() {
