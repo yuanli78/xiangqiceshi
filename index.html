@@ -1513,7 +1513,7 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
               phasingPieces.push({name: piece.name, color: piece.color, row: move.toRow, col: move.toCol, turnsLeft: 3});
               log(`👻 ${piece.name} 进入虚影状态，3回合内可自由移动，超时被吃！`, 'info');
             // 3. 普通吃子
-            } else {{
+            } else {
               if (target && target.color !== color) {
                 if (REVIVABLE_TYPES.includes(target.name)) {
                   const p = target.color === BLACK ? deadPoolBlack : deadPoolRed;
