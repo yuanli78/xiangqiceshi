@@ -150,7 +150,7 @@
       '围': 250, '人': 280, '以': 250, '李': 250, '打': 280, '砖': 250, '柱': 280, '远': 280, '主': 250, '虢': 280, '釜': 300, '畈': 250,
       '狐': 200, '鬼': 220, '蛇': 240, '画': 260, '促': 200,
       '影将': 100, '影士': 100, '影象': 100, '影马': 100, '影车': 100, '影炮': 100, '影兵': 100,
-      '异型将': 0
+      '异型将': 0, '双卫': 500
     };
 
     const ruleMap = {
@@ -725,6 +725,27 @@ function tianJiangHasValidMove(tj, color) {
          if (cnt === 1) return true;
        }
      }    // 斜线兵种及士类
+      if (['双卫'].includes(name)) {
+        if (Math.abs(dr) === Math.abs(dc) && dr !== 0) {
+          const stepR = dr > 0 ? 1 : -1, stepC = dc > 0 ? 1 : -1;
+          let r = fromRow + stepR, c = fromCol + stepC;
+          while (r !== toRow && c !== toCol) {
+            if (board[r-ROW_MIN]?.[c-COL_MIN]) return false;
+            r += stepR; c += stepC;
+          }
+          return true;
+        }
+        if (dr === 0 && dc !== 0) {
+          const step = dc > 0 ? 1 : -1;
+          for (let c = fromCol + step; c !== toCol; c += step) if (board[fromRow-ROW_MIN]?.[c-COL_MIN]) return false;
+          return true;
+        }
+        if (dc === 0 && dr !== 0) {
+          const step = dr > 0 ? 1 : -1;
+          for (let r = fromRow + step; r !== toRow; r += step) if (board[r-ROW_MIN]?.[fromCol-COL_MIN]) return false;
+          return true;
+        }
+      }
      if (['士','飞士','战士','士卒','影士','象','飞象','战象','国象','鹿','驼','悬','蝉','后','天兵','牵','混','笑','瞒','狐'].includes(name)) {
        if (Math.abs(dr) === Math.abs(dc) && dr !== 0) {
          const stepR = dr > 0 ? 1 : -1, stepC = dc > 0 ? 1 : -1;
@@ -894,9 +915,38 @@ function tianJiangHasValidMove(tj, color) {
         }
         return false;
     }
+    // 双卫合体：天将卫与河边卫相邻时合体为双卫
+    function tryDualGuardMerge(color) {
+      const tianWei = tianJiangs.find(t => t.type === '卫' && t.color === color && t.isRevealed);
+      if (!tianWei) return;
+      const cells = tianWei.isHalved ? [{row: tianWei.row, col: tianWei.leftCol}] : [{row: tianWei.row, col: tianWei.leftCol}, {row: tianWei.row, col: tianWei.rightCol}];
+      for (const c of cells) {
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            const nr = c.row + dr, nc = c.col + dc;
+            if (nr < ROW_MIN || nr > ROW_MAX || nc < COL_MIN || nc > COL_MAX) continue;
+            const p = board[nr - ROW_MIN]?.[nc - COL_MIN];
+            if (p && p.color === color && p.name === '卫') {
+              // 合体！移除河边卫和天将卫，生成双卫
+              board[nr - ROW_MIN][nc - COL_MIN] = null;
+              cells.forEach(c2 => { if (board[c2.row - ROW_MIN]?.[c2.col - COL_MIN]) board[c2.row - ROW_MIN][c2.col - COL_MIN] = null; });
+              const mergeRow = Math.round((c.row + nr) / 2);
+              const mergeCol = Math.round((c.col + nc) / 2);
+              board[mergeRow - ROW_MIN][mergeCol - COL_MIN] = {name: '双卫', color: color};
+              tianJiangs.splice(tianJiangs.indexOf(tianWei), 1);
+              log((color === RED ? '红' : '黑') + '方天将卫与河边卫合体为双卫！', 'warn');
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    }
     function revealTianJiangs(color) {
   tianJiangs.filter(t => t.color === color).forEach(t => { t.isRevealed = true; });
   log("" + (color === RED ? '红' : '黑') + "方天将现身！真伪明示！", 'warn');
+      tryDualGuardMerge(color);
 }
 
     function generateMoves(color)  {
@@ -1141,6 +1191,9 @@ function tianJiangHasValidMove(tj, color) {
         else if(piece.name === '后') {
           for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
           for(let step=1; step<=8; step++) offsets.push([-step,-step],[-step,step],[step,-step],[step,step]);
+        } else if(piece.name === '双卫') {
+          for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
+          for(let step=1; step<=8; step++) offsets.push([-step,-step],[-step,step],[step,-step],[step,step]);
         } else if(piece.name === '驼' || piece.name === '悬') offsets = [[-2,-2],[-2,2],[2,-2],[2,2]];
         else if(piece.name === '翔') for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
         else if(piece.name === '天兵') offsets = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
@@ -1255,6 +1308,7 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
           if(['雷','军师','诏','政','截','日','月','卫','城','舞','美','借','调','牵','混','假','欲','无','关','上','空','走','狐','鬼','蛇','画','促','围','李','砖','柱','主','釜'].includes(piece.name)) canEat = false;
         if(piece.name==='金兵'||piece.name==='木兵'||piece.name==='水兵'||piece.name==='火兵'||piece.name==='土兵'||piece.name==='全五行') { if(target && target.color===enemy) canEat=true; else canEat=false; }
           if(piece.name==='追') { const fwd = color===BLACK?1:-1; if(dr!==fwd) canEat=false; }
+        if(piece.name==='双卫') { if(target && target.color===enemy) canEat=true; else canEat=false; }
           if(piece.name==='擒') { if(target && (target.name.includes('天将')||target.name==='飞将'||target.name==='战将'||target.name==='异型将')) canEat=true; else canEat=false; }
           if(piece.name==='笑') canEat = true;
           if(piece.name==='隔' || piece.name==='趁' || piece.name==='畈') canEat = false;
