@@ -99,7 +99,6 @@
     let autoRunning = false, autoTimer = null;
     let deadPoolBlack = [], deadPoolRed = [];
     let phasingGiants = [];
-let phasingPieces = [];
     const REVIVABLE_TYPES = ['车','马','炮','驼','骡','麒','飞车','战车','飞马','战马','飞炮','战炮','抛石器','悬','翔','追','截','轰'];
     const medicalBlack = [{row:1,col:-18},{row:1,col:-16},{row:1,col:-14}];
     const medicalRed = [{row:13,col:16},{row:13,col:18},{row:13,col:20}];
@@ -289,19 +288,7 @@ let phasingPieces = [];
       return { black, red };
     }
 
-    function updatePhasing() {
-  const toRemove = [];
-  phasingPieces.forEach(pp => { pp.turnsLeft--; if (pp.turnsLeft <= 0) toRemove.push(pp); });
-  toRemove.forEach(pp => {
-    const r = pp.row - ROW_MIN, c2 = pp.col - COL_MIN;
-    if (r >= 0 && r < ROWS && c2 >= 0 && c2 < COLS && board[r]?.[c2] && board[r][c2].name === pp.name && board[r][c2].color === pp.color) {
-      board[r][c2] = null;
-    }
-    const idx = phasingPieces.indexOf(pp);
-    if (idx > -1) phasingPieces.splice(idx, 1);
-    log(`💀 ${pp.color === RED ? '红' : '黑'}方${pp.name} 虚影消散，被巨将吞噬！`, 'warn');
-  });
-}
+    
 
 
     function updatePhasing() {
@@ -951,8 +938,7 @@ let phasingPieces = [];
           }
           const canEatGiant = enemyCount > 0;
                     if (!phasingGiants.some(pg => pg.giant === g)) {
-            moves.push({type:'giant', giant:g, toRow:nr, toCol:nc, isEat: canEatGiant, piece
-          }Name:'巨将'});
+            moves.push({type:'giant', giant:g, toRow:nr, toCol:nc, isEat: canEatGiant, pieceName:'巨将'});
         }
       });
 
@@ -1124,7 +1110,6 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
           giants: giants.map(g => ({ ...g })),
           stackedDancers: stackedDancers.map(d => ({ ...d })),
           phasingGiants: phasingGiants.map(pg => ({ giant: pg.giant, turnsLeft: pg.turnsLeft })),
-          phasingPieces: phasingPieces.map(pp => ({ ...pp })),
           currentPlayer: currentPlayer,
           deadPoolBlack: [...deadPoolBlack],
           deadPoolRed: [...deadPoolRed]
@@ -1140,9 +1125,8 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
           board[toRow-ROW_MIN][toCol-COL_MIN] = {name:'舞', color:color};
           const idx = stackedDancers.indexOf(dancer);
           if(idx > -1) stackedDancers.splice(idx, 1);
-        updatePhasing();
+                updatePhasing();
 
-          updatePhasing();
           countPieces(); return true;
         }
         if (move.type === 'tianjiang') {
@@ -1266,9 +1250,7 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
                   }
                   giants.splice(giants.indexOf(attackedGiantForTJ), 1);
                 }
-                                phasingPieces.push({name: '天将' + t.type, color: color, row: c.row, col: c.col, turnsLeft: 3});
-                log(`👻 天将${t.type} 进入虚影状态，3回合内可自由移动，超时被吃！`, 'info');
-                hasEaten = true;
+                                ;
               }
 
             });
@@ -1566,21 +1548,7 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
 
         }
         countPieces();
-        if (checkGameEnd()) return true;
-                if (move.type === 'piece') {
-          const ppIdx = phasingPieces.findIndex(pp => pp.row === move.fromRow && pp.col === move.fromCol);
-          if (ppIdx > -1) {
-            phasingPieces.splice(ppIdx, 1);
-            log(`👻 ${piece.name} 脱离虚影状态，安全撤退！`, 'info');
-          }
-        }
-        if (move.type === 'tianjiang') {
-          const ppIdx = phasingPieces.findIndex(pp => pp.color === color && pp.name.startsWith('天将'));
-          if (ppIdx > -1) {
-            phasingPieces.splice(ppIdx, 1);
-            log(`👻 天将脱离虚影状态，安全撤退！`, 'info');
-          }
-        }
+        if        }
 return true;
       } catch(e) { log(`❌ 走法异常: ${e.message}`, 'error'); return false; }
     }
@@ -1602,16 +1570,14 @@ return true;
       giants = snapshot.giants;
       stackedDancers = snapshot.stackedDancers;
       phasingGiants = snapshot.phasingGiants;
-      phasingPieces = snapshot.phasingPieces;
       currentPlayer = snapshot.currentPlayer;
       deadPoolBlack = snapshot.deadPoolBlack;
       deadPoolRed = snapshot.deadPoolRed;
       selectedPiece = null;
       validMoves = [];
       dangerMoves = [];
-        updatePhasing();
+                updatePhasing();
 
-      updatePhasing();
       countPieces();
       drawBoard();
       log('↩️ 悔棋成功', 'info');
@@ -1721,8 +1687,12 @@ return true;
       giants.forEach(g=>{
         const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2;
         // 绘制巨将圆形
-        ctx.beginPath(); ctx.arc(cx,cy,LINE_SPAN*0.85,0,2*Math.PI);
+        
+          if (phasingGiants.some(pg => pg.giant === g)) {
+            ctx.globalAlpha = 0.4 + 0.3 * Math.sin(Date.now() / 150);
+          }ctx.beginPath(); ctx.arc(cx,cy,LINE_SPAN*0.85,0,2*Math.PI);
         ctx.fillStyle=g.color===RED?RED_COLOR:BLACK_COLOR; ctx.fill();
+          ctx.globalAlpha = 1;
         ctx.strokeStyle='#ffe0b5'; ctx.lineWidth=3; ctx.stroke();
         // 巨将文字
         ctx.fillStyle='#fff'; ctx.font=`bold ${LINE_SPAN*0.5}px KaiTi`; ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -1742,28 +1712,7 @@ return true;
         ctx.strokeStyle = '#222';
         ctx.lineWidth = 1;
         ctx.strokeRect(barX, barY, barW, barH);
-      });
-
-      
-      phasingPieces.forEach(pp => {
-        const alpha = 0.4 + 0.2 * Math.sin(Date.now() / 200);
-        ctx.globalAlpha = alpha;
-        const bx = getX(pp.col), by = getY(pp.row);
-        const cx2 = bx + LINE_SPAN / 2, cy2 = by + LINE_SPAN / 2;
-        ctx.fillStyle = pp.color === RED ? '#b91c1c' : '#3a2a1a';
-        ctx.font = `bold ${LINE_SPAN*0.3}px KaiTi`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(pp.name, cx2, cy2);
-        ctx.strokeStyle = '#ffd700';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(bx+2, by+2, LINE_SPAN-4, LINE_SPAN-4);
-        ctx.font = `bold ${LINE_SPAN*0.2}px KaiTi`;
-        ctx.fillStyle = '#ffd700';
-        ctx.fillText('⏳'+pp.turnsLeft, bx+LINE_SPAN*0.85, by+LINE_SPAN*0.25);
-      });
-      ctx.globalAlpha = 1;
-for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
+      });for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
         const piece=board[r][c]; if(!piece || piece.name==='巨将') continue;
         
         // 检查这个格子是不是被某个天将占据（如果是，椭圆绘制已经画过了，这里跳过）
