@@ -535,9 +535,27 @@
       for (let i = 0; i < generals.length; i++) for (let j = i+1; j < generals.length; j++) {
         const g1 = generals[i], g2 = generals[j]; if (g1.color === g2.color) continue;
         const dr = g2.row - g1.row, dc = g2.col - g1.col;
-        if (dr === 0 && dc !== 0) { let bl = false; for (let cc = g1.col + (dc>0?1:-1); cc !== g2.col; cc += (dc>0?1:-1)) { if (board[g1.row-ROW_MIN]?.[cc-COL_MIN]) { bl = true; break; } } if (!bl) return announceWinner(g2.color, g1.name + '与' + g2.name + '照面'); }
-        if (dc === 0 && dr !== 0) { let bl = false; for (let rr = g1.row + (dr>0?1:-1); rr !== g2.row; rr += (dr>0?1:-1)) { if (board[rr-ROW_MIN]?.[g1.col-COL_MIN]) { bl = true; break; } } if (!bl) return announceWinner(g2.color, g1.name + '与' + g2.name + '照面'); }
-        if (Math.abs(dr) === Math.abs(dc) && dr !== 0) { let bl = false; const sr = dr>0?1:-1, sc = dc>0?1:-1; let rr = g1.row + sr, cc = g1.col + sc; while (rr !== g2.row && cc !== g2.col) { if (board[rr-ROW_MIN]?.[cc-COL_MIN]) { bl = true; break; } rr += sr; cc += sc; } if (!bl) return announceWinner(g2.color, g1.name + '与' + g2.name + '照面'); }
+        const straight = (dr === 0 && dc !== 0) || (dc === 0 && dr !== 0);
+        const diagonal = Math.abs(dr) === Math.abs(dc) && dr !== 0;
+        if (straight) {
+          let blocked = false;
+          if (dr === 0) for (let cc = g1.col + (dc>0?1:-1); cc !== g2.col; cc += (dc>0?1:-1)) { if (board[g1.row-ROW_MIN]?.[cc-COL_MIN]) { blocked = true; break; } }
+          else for (let rr = g1.row + (dr>0?1:-1); rr !== g2.row; rr += (dr>0?1:-1)) { if (board[rr-ROW_MIN]?.[g1.col-COL_MIN]) { blocked = true; break; } }
+          if (!blocked) {
+            if ((g1.name === '战将' && g2.name === '飞将') || (g1.name === '飞将' && g2.name === '战将')) {
+              const winner = g1.name === '战将' ? g1.color : g2.color;
+              return announceWinner(winner, '战将与飞将照面，战将胜');
+            }
+            return announceWinner(g2.color, g1.name + '与' + g2.name + '照面');
+          }
+        }
+        if (diagonal && g1.name === g2.name) {
+          let blocked = false;
+          const sr = dr>0?1:-1, sc = dc>0?1:-1;
+          let rr = g1.row + sr, cc = g1.col + sc;
+          while (rr !== g2.row && cc !== g2.col) { if (board[rr-ROW_MIN]?.[cc-COL_MIN]) { blocked = true; break; } rr += sr; cc += sc; }
+          if (!blocked) return announceWinner(g2.color, g1.name + '与' + g2.name + '斜线照面');
+        }
       }
       return false;
     }
@@ -1019,6 +1037,15 @@ function tianJiangHasValidMove(tj, color) {
         else if(piece.name === '牵' || piece.name === '混') offsets = [[-1,-1],[-1,1],[1,-1],[1,1]];
         else if(piece.name === '笑' || piece.name === '瞒') offsets = [[-1,-1],[-1,1],[1,-1],[1,1],[-2,-2],[-2,2],[2,-2],[2,2]];
         else if(piece.name === '树') { for(let step=1; step<=8; step++) { if(row+step!==row) offsets.push([step,0],[-step,0]); if(col+step!==col) offsets.push([0,step],[0,-step]); } }
+        else if(['飞将','战将','异型将'].includes(piece.name)) {
+          offsets = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+          if (piece.name === '战将') {
+            for (let step = 2; step <= 8; step++) {
+              offsets.push([-step,0],[step,0],[0,-step],[0,step]);
+              offsets.push([-step,-step],[-step,step],[step,-step],[step,step]);
+            }
+          }
+        }
         else if(piece.name === '狐') offsets = [[-1,-1],[-1,1],[1,-1],[1,1]];
         else if(piece.name === '测试') {
           // 测试棋子：全盘任意移动，全盘任意吃子
@@ -1238,9 +1265,6 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
                   }
                   tianJiangs.splice(tianJiangs.indexOf(enemyTJ), 1);
                 }
-                                if (!phasingGiants.some(pg => pg.giant === attackedGiantForTJ)) {
-                  phasingGiants.push({giant: attackedGiantForTJ, turnsLeft: 3});
-                  log("👻 巨将进入虚影状态！3回合内无法被攻击。", 'info');
                 }
                 hasEaten = true;
               }
@@ -1273,9 +1297,12 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
                       }
                     }
                   }
-                  giants.splice(giants.indexOf(attackedGiantForTJ), 1);
+                } else {
+                  if (!phasingGiants.some(pg => pg.giant === attackedGiantForTJ)) {
+                    phasingGiants.push({giant: attackedGiantForTJ, turnsLeft: 3});
+                    log("👻 巨将进入虚影状态！3回合内无法被攻击。", 'info');
+                  }
                 }
-                                ;
               }
 
             });
@@ -1445,85 +1472,46 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
               board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
             }
 
-          // 检查是否攻击了巨将（必须同时检查天将和巨将）
-                          } else {
-          const piece = board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN];
-          const target = board[move.toRow - ROW_MIN]?.[move.toCol - COL_MIN];
-
-          // 1. 优先检查是否攻击了天将
-          const attackedTianJiang = tianJiangs.find(tj =>
-            tj.color !== color &&
-            ((tj.row === move.toRow && tj.leftCol === move.toCol) ||
-             (tj.row === move.toRow && tj.rightCol === move.toCol))
-          );
-
-          if (attackedTianJiang) {
-            attackedTianJiang.hp--;
-            if (attackedTianJiang.hp > 0 && !attackedTianJiang.isHalved) {
-              attackedTianJiang.isHalved = true;
-              const surviveCol = (move.toCol === attackedTianJiang.leftCol) ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
-              [attackedTianJiang.leftCol, attackedTianJiang.rightCol].forEach(c2 => {
-                if (board[attackedTianJiang.row - ROW_MIN]?.[c2 - COL_MIN]) board[attackedTianJiang.row - ROW_MIN][c2 - COL_MIN] = null;
-              });
-              attackedTianJiang.leftCol = surviveCol;
-              attackedTianJiang.rightCol = surviveCol;
-              board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
-              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
-              log(`${attackedTianJiang.color === RED ? '红' : '黑'}方天将${attackedTianJiang.type}受创，缩为一格！`, 'warn');
-            } else if (attackedTianJiang.hp <= 0) {
-              log(`${attackedTianJiang.color === RED ? '红' : '黑'}方天将${attackedTianJiang.type}被击杀！`, 'warn');
-              if (!attackedTianJiang.isHalved) {
-                const otherCol = (move.toCol === attackedTianJiang.leftCol) ? attackedTianJiang.rightCol : attackedTianJiang.leftCol;
-                if (board[attackedTianJiang.row - ROW_MIN]?.[otherCol - COL_MIN]) board[attackedTianJiang.row - ROW_MIN][otherCol - COL_MIN] = null;
-              }
-              tianJiangs.splice(tianJiangs.indexOf(attackedTianJiang), 1);
-              board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
-              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
-            }
 
           // 2. 检查是否攻击了巨将
-                              } else {
-            const attackedGiant = giants.find(g =>
-              g.color !== color &&
-              g.topLeftRow <= move.toRow && move.toRow <= g.topLeftRow + 1 &&
-              g.topLeftCol <= move.toCol && move.toCol <= g.topLeftCol + 1
-            );
-            if (attackedGiant) {
-              attackedGiant.hp--;
-              log("💢 巨将受创！剩余生命：" + attackedGiant.hp, 'warn');
-              if (attackedGiant.hp <= 0) {
-                log("💀 巨将崩毁！", 'warn');
-                for (let dr = 0; dr < 2; dr++) {
-                  for (let dc = 0; dc < 2; dc++) {
-                    const ir = attackedGiant.topLeftRow + dr - ROW_MIN, ic = attackedGiant.topLeftCol + dc - COL_MIN;
-                    if (ir >= 0 && ir < ROWS && ic >= 0 && ic < COLS) board[ir][ic] = null;
-                  }
-                }
-                giants.splice(giants.indexOf(attackedGiant), 1);
-                // 巨将死亡时清理虚影状态
-                const pgIdx = phasingGiants.findIndex(pg => pg.giant === attackedGiant);
-                if (pgIdx > -1) phasingGiants.splice(pgIdx, 1);
-              } else {
-                // 巨将未死：进入虚影状态
-                if (!phasingGiants.some(pg => pg.giant === attackedGiant)) {
-                  phasingGiants.push({giant: attackedGiant, turnsLeft: 3});
-                  log("👻 巨将进入虚影状态！3回合内无法被攻击。", 'info');
+          const attackedGiant = giants.find(g =>
+            g.color !== color &&
+            g.topLeftRow <= move.toRow && move.toRow <= g.topLeftRow + 1 &&
+            g.topLeftCol <= move.toCol && move.toCol <= g.topLeftCol + 1
+          );
+          if (attackedGiant) {
+            attackedGiant.hp--;
+            log('💢 巨将受创！剩余生命：' + attackedGiant.hp, 'warn');
+            if (attackedGiant.hp <= 0) {
+              log('💀 巨将崩毁！', 'warn');
+              for (let dr = 0; dr < 2; dr++) {
+                for (let dc = 0; dc < 2; dc++) {
+                  const ir = attackedGiant.topLeftRow + dr - ROW_MIN, ic = attackedGiant.topLeftCol + dc - COL_MIN;
+                  if (ir >= 0 && ir < ROWS && ic >= 0 && ic < COLS) board[ir][ic] = null;
                 }
               }
-              board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
-              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
-            // 3. 普通吃子
+              giants.splice(giants.indexOf(attackedGiant), 1);
+              const pgIdx = phasingGiants.findIndex(pg => pg.giant === attackedGiant);
+              if (pgIdx > -1) phasingGiants.splice(pgIdx, 1);
             } else {
-              if (target && target.color !== color) {
-                if (REVIVABLE_TYPES.includes(target.name)) {
-                  const p = target.color === BLACK ? deadPoolBlack : deadPoolRed;
-                  p.push(target.name);
-                }
+              if (!phasingGiants.some(pg => pg.giant === attackedGiant)) {
+                phasingGiants.push({giant: attackedGiant, turnsLeft: 3});
+                log('👻 巨将进入虚影状态！3回合内无法被攻击。', 'info');
               }
-              board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
-              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
             }
-          }
+            board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+            board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
+
+          // 3. 普通吃子
+          } else {
+            if (target && target.color !== color) {
+              if (REVIVABLE_TYPES.includes(target.name)) {
+                const p = target.color === BLACK ? deadPoolBlack : deadPoolRed;
+                p.push(target.name);
+              }
+            }
+            board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+            board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
           }
           }
         countPieces();
