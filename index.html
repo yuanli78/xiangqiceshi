@@ -153,7 +153,7 @@
       '巨将': '走:横竖每次两格(整体2×2)\n吃:可同时吃1-3枚覆盖敌子',
       '飞将': '走:横竖斜一格\n吃:同走法',
       '战将': '走:横竖斜一格；可远距吃子\n吃:一格吃或远距直线/斜线吃',
-      '异型将': '未入场',
+      '异型将': '走:横竖斜一格\n技能:王车移位-与己方非王棋交换位置',
       '士': '走:斜一格\n吃:斜一格',
       '飞士': '走:斜任意格\n吃:斜任意格',
       '战士': '走:横竖一格\n吃:同走法',
@@ -1037,7 +1037,33 @@ function tianJiangHasValidMove(tj, color) {
         else if(piece.name === '牵' || piece.name === '混') offsets = [[-1,-1],[-1,1],[1,-1],[1,1]];
         else if(piece.name === '笑' || piece.name === '瞒') offsets = [[-1,-1],[-1,1],[1,-1],[1,1],[-2,-2],[-2,2],[2,-2],[2,2]];
         else if(piece.name === '树') { for(let step=1; step<=8; step++) { if(row+step!==row) offsets.push([step,0],[-step,0]); if(col+step!==col) offsets.push([0,step],[0,-step]); } }
-        else if(['飞将','战将','异型将'].includes(piece.name)) {
+        else if(piece.name === '异型将') {
+          offsets = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+          // 王车移位：与己方非天将/巨将棋子交换位置
+          for (let r = ROW_MIN; r <= ROW_MAX; r++) {
+            for (let c = COL_MIN; c <= COL_MAX; c++) {
+              if (r === row && c === col) continue;
+              const tgt = board[r - ROW_MIN]?.[c - COL_MIN];
+              if (tgt && tgt.color === color && tgt.name !== '巨将' && !tgt.name.startsWith('天将') && tgt.name !== '异型将') {
+                // 检查路径是否无障碍（只允许直线交换）
+                if (r === row) {
+                  let blocked = false;
+                  for (let cc = Math.min(c, col) + 1; cc < Math.max(c, col); cc++) {
+                    if (board[r - ROW_MIN]?.[cc - COL_MIN]) { blocked = true; break; }
+                  }
+                  if (!blocked) offsets.push([r - row, c - col]);
+                } else if (c === col) {
+                  let blocked = false;
+                  for (let rr = Math.min(r, row) + 1; rr < Math.max(r, row); rr++) {
+                    if (board[rr - ROW_MIN]?.[c - COL_MIN]) { blocked = true; break; }
+                  }
+                  if (!blocked) offsets.push([r - row, c - col]);
+                }
+              }
+            }
+          }
+        }
+        else if(['飞将','战将'].includes(piece.name)) {
           offsets = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
           if (piece.name === '战将') {
             for (let step = 2; step <= 8; step++) {
@@ -1430,6 +1456,17 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
         } else {
           const piece = board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN];
           const target = board[move.toRow - ROW_MIN]?.[move.toCol - COL_MIN];
+
+        // 异将王车移位：与己方非王棋子交换位置
+        if (piece && piece.name === '异型将' && target && target.color === color &&
+            target.name !== '巨将' && !target.name.startsWith('天将') && target.name !== '异型将') {
+          board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+          board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = target;
+          log('🔄 异将王车移位：与 ' + target.name + ' 交换位置', 'info');
+          countPieces();
+          if (checkGameEnd()) return true;
+          return true;
+        }
 
           // 优先检查是否攻击了天将
           const attackedTianJiang = tianJiangs.find(tj =>
