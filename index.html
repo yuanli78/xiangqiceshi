@@ -578,6 +578,53 @@ function tianJiangHasValidMove(tj, color) {
       return true;
     }
     function checkWinner() {
+
+    // 连环马：检测马类棋子是否形成连环保护
+    // 当两匹及以上马类棋子相邻时，区域内己方棋子不能被吃
+    const HORSE_TYPES = ["马","飞马","战马","骡","异型马","麒"];
+    function isInChainHorseZone(row, col, defenderColor) {
+      // 检查该格是否被己方连环马保护
+      const horses = [];
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const p = board[r][c];
+          if (p && p.color === defenderColor && HORSE_TYPES.includes(p.name)) {
+            horses.push({row: ROW_MIN + r, col: COL_MIN + c});
+          }
+        }
+      }
+      // 检查马是否相邻（距离<=2格，日字跳范围）
+      const connectedHorses = [];
+      for (let i = 0; i < horses.length; i++) {
+        for (let j = i + 1; j < horses.length; j++) {
+          const dr = Math.abs(horses[i].row - horses[j].row);
+          const dc = Math.abs(horses[i].col - horses[j].col);
+          // 日字跳距离内算相邻
+          if ((dr === 1 && dc === 2) || (dr === 2 && dc === 1) ||
+              (dr === 0 && dc <= 2 && dc > 0) || (dr <= 2 && dr > 0 && dc === 0)) {
+            if (!connectedHorses.includes(horses[i])) connectedHorses.push(horses[i]);
+            if (!connectedHorses.includes(horses[j])) connectedHorses.push(horses[j]);
+          }
+        }
+      }
+      if (connectedHorses.length < 2) return false;
+
+      // 计算保护区 - 所有连环马的日字跳可达位置
+      const zone = [];
+      for (const h of connectedHorses) {
+        const offsets = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+        for (const [dr, dc] of offsets) {
+          const nr = h.row + dr, nc = h.col + dc;
+          if (nr >= ROW_MIN && nr <= ROW_MAX && nc >= COL_MIN && nc <= COL_MAX) {
+            const target = board[nr - ROW_MIN]?.[nc - COL_MIN];
+            if (target && target.color === defenderColor && !HORSE_TYPES.includes(target.name)) {
+              zone.push({row: nr, col: nc});
+            }
+          }
+        }
+      }
+      return zone.some(z => z.row === row && z.col === col);
+    }
       const { black, red } = countPieces();
       if(black === 0) return RED;
       if(red === 0) return BLACK;
@@ -703,6 +750,8 @@ function tianJiangHasValidMove(tj, color) {
        }
      }
      // 其他棋子暂时认为不能远距离攻击
+      // 连环马保护区：目标在连环马保护区内则不能吃
+      if (isInChainHorseZone(toRow, toCol, piece.color)) return true;
      return false;
    }
 
@@ -1665,6 +1714,40 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
           ctx.globalAlpha = 1;
         }
       });
+      // 绘制连环马保护区
+      const chHorses = [];
+      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+        const p = board[r][c];
+        if (p && HORSE_TYPES.includes(p.name)) chHorses.push({row: ROW_MIN + r, col: COL_MIN + c, color: p.color});
+      }
+      const chConnected = [];
+      for (let i = 0; i < chHorses.length; i++) {
+        for (let j = i + 1; j < chHorses.length; j++) {
+          const dr = Math.abs(chHorses[i].row - chHorses[j].row);
+          const dc = Math.abs(chHorses[i].col - chHorses[j].col);
+          if ((dr === 1 && dc === 2) || (dr === 2 && dc === 1) || (dr === 0 && dc <= 2 && dc > 0) || (dr <= 2 && dr > 0 && dc === 0)) {
+            if (!chConnected.includes(chHorses[i])) chConnected.push(chHorses[i]);
+            if (!chConnected.includes(chHorses[j])) chConnected.push(chHorses[j]);
+          }
+        }
+      }
+      if (chConnected.length >= 2) {
+        for (const h of chConnected) {
+          const offsets = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
+          for (const [dr, dc] of offsets) {
+            const nr = h.row + dr, nc = h.col + dc;
+            if (nr >= ROW_MIN && nr <= ROW_MAX && nc >= COL_MIN && nc <= COL_MAX) {
+              const tgt = board[nr - ROW_MIN]?.[nc - COL_MIN];
+              if (tgt && tgt.color === h.color && !HORSE_TYPES.includes(tgt.name)) {
+                const x = getX(nc), y = getY(nr);
+                ctx.beginPath(); ctx.arc(x, y, LINE_SPAN*0.32, 0, 2*Math.PI);
+                ctx.strokeStyle = h.color === RED ? "#ff6b6b" : "#6b6bff";
+                ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
+              }
+            }
+          }
+        }
+      }
       validMoves.forEach(m => {
         const x = getX(m.col), y = getY(m.row);
         ctx.beginPath(); ctx.arc(x, y, LINE_SPAN*0.15, 0, 2*Math.PI);
