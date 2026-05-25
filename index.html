@@ -60,6 +60,7 @@
 </div>
 
 <script>
+
   (function() {
     const canvas = document.getElementById('chessCanvas');
     const ctx = canvas.getContext('2d');
@@ -506,51 +507,41 @@
       const blackZhen = tianJiangs.find(t => t.type === '真' && t.color === BLACK);
       if (!redZhen) return announceWinner(BLACK, '红方天将真被消灭');
       if (!blackZhen) return announceWinner(RED, '黑方天将真被消灭');
-
-      // 获取当前玩家的所有合法移动
       const allMoves = generateMoves(currentPlayer);
       if (allMoves.length === 0) {
-        const general = currentPlayer === RED ? redZhen : blackZhen;
-        if (!general) return false;
-        // 检查被将的是真将还是卫
         const inCheckTJ = tianJiangs.filter(t => t.color === currentPlayer && isTianJiangInCheck(t));
         const zhenInCheck = inCheckTJ.some(t => t.type === '真');
         const weiInCheck = inCheckTJ.some(t => t.type === '卫');
         if (weiInCheck && !zhenInCheck) {
-          // 仅有卫被将→强制卫现身，移除卫，游戏继续
-          if (!weiInCheck[0].isRevealed) revealTianJiangs(currentPlayer);
+          revealTianJiangs(currentPlayer);
           const wei = inCheckTJ.find(t => t.type === '卫');
           if (wei) {
             log((currentPlayer === RED ? '红' : '黑') + '方天将卫被将死，卫被移除！', 'warn');
             const cells = wei.isHalved ? [{row: wei.row, col: wei.leftCol}] : [{row: wei.row, col: wei.leftCol}, {row: wei.row, col: wei.rightCol}];
-            cells.forEach(c => { if (board[c.row - ROW_MIN]?.[c.col - COL_MIN]) board[c.row - ROW_MIN][c.col - COL_MIN] = null; });
+            cells.forEach(c2 => { if (board[c2.row - ROW_MIN]?.[c2.col - COL_MIN]) board[c2.row - ROW_MIN][c2.col - COL_MIN] = null; });
             tianJiangs.splice(tianJiangs.indexOf(wei), 1);
             return false;
           }
         }
+        const inCheck = inCheckTJ.length > 0;
         return announceWinner(currentPlayer === RED ? BLACK : RED, inCheck ? '将死' : '困毙');
+      }
+      // 飞将、战将照面判定
+      const generals = [];
+      for (let r = 0; r < ROWS; r++) for (let c2 = 0; c2 < COLS; c2++) {
+        const p = board[r][c2];
+        if (p && (p.name === '飞将' || p.name === '战将')) generals.push({ name: p.name, color: p.color, row: r + ROW_MIN, col: c2 + COL_MIN });
+      }
+      for (let i = 0; i < generals.length; i++) for (let j = i+1; j < generals.length; j++) {
+        const g1 = generals[i], g2 = generals[j]; if (g1.color === g2.color) continue;
+        const dr = g2.row - g1.row, dc = g2.col - g1.col;
+        if (dr === 0 && dc !== 0) { let bl = false; for (let cc = g1.col + (dc>0?1:-1); cc !== g2.col; cc += (dc>0?1:-1)) { if (board[g1.row-ROW_MIN]?.[cc-COL_MIN]) { bl = true; break; } } if (!bl) return announceWinner(g2.color, g1.name + '与' + g2.name + '照面'); }
+        if (dc === 0 && dr !== 0) { let bl = false; for (let rr = g1.row + (dr>0?1:-1); rr !== g2.row; rr += (dr>0?1:-1)) { if (board[rr-ROW_MIN]?.[g1.col-COL_MIN]) { bl = true; break; } } if (!bl) return announceWinner(g2.color, g1.name + '与' + g2.name + '照面'); }
+        if (Math.abs(dr) === Math.abs(dc) && dr !== 0) { let bl = false; const sr = dr>0?1:-1, sc = dc>0?1:-1; let rr = g1.row + sr, cc = g1.col + sc; while (rr !== g2.row && cc !== g2.col) { if (board[rr-ROW_MIN]?.[cc-COL_MIN]) { bl = true; break; } rr += sr; cc += sc; } if (!bl) return announceWinner(g2.color, g1.name + '与' + g2.name + '照面'); }
       }
       return false;
     }
-
-    function _checkGameEnd() {
-      const redZhen = tianJiangs.find(t => t.type === '真' && t.color === RED);
-      const blackZhen = tianJiangs.find(t => t.type === '真' && t.color === BLACK);
-      if (!redZhen) return announceWinner(BLACK, '红方天将真被消灭');
-      if (!blackZhen) return announceWinner(RED, '黑方天将真被消灭');
-
-      // 获取当前玩家的所有合法移动
-      const allMoves = generateMoves(currentPlayer);
-      if (allMoves.length === 0) {
-        const general = currentPlayer === RED ? redZhen : blackZhen;
-        if (!general) return false;
-        const inCheck = isTianJiangInCheck(general);
-        return announceWinner(currentPlayer === RED ? BLACK : RED, inCheck ? '将死' : '困毙');
-      }
-      return false;
-    }
-
-    function tianJiangHasValidMove(tj, color) {
+function tianJiangHasValidMove(tj, color) {
       const moves = generateMoves(color);
       return moves.some(m => m.type === 'tianjiang' && m.tj === tj);
     }
@@ -1298,51 +1289,7 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
 
           // 放置天将到新位置
           newCells.forEach(c => {
-                      // 检查天将攻击巨将
-          const tjGiantTarget = giants.find(g =>
-            g.color !== color &&
-            g.topLeftRow <= move.toRow && g.topLeftRow + 1 >= move.toRow &&
-            g.topLeftCol <= move.toLeftCol && g.topLeftCol + 1 >= move.toLeftCol + (tj.isHalved ? 0 : 1)
-          );
-          if (tjGiantTarget) {
-            let isStrongKill = false;
-            if (!tj.isHalved) {
-              if (tj.leftCol === tjGiantTarget.topLeftCol && tj.rightCol === tjGiantTarget.topLeftCol + 1) {
-                if (Math.abs(tj.row - tjGiantTarget.topLeftRow) === 1 || Math.abs(tj.row - (tjGiantTarget.topLeftRow + 1)) === 1) {
-                  isStrongKill = true;
-                }
-              }
-              if (tjGiantTarget.topLeftRow <= tj.row && tj.row <= tjGiantTarget.topLeftRow + 1 &&
-                  tjGiantTarget.topLeftCol <= tj.leftCol && tjGiantTarget.topLeftCol + 1 >= tj.rightCol) {
-                isStrongKill = true;
-              }
-            } else {
-              if (tjGiantTarget.topLeftRow <= tj.row && tj.row <= tjGiantTarget.topLeftRow + 1 &&
-                  tjGiantTarget.topLeftCol <= tj.leftCol && tj.leftCol <= tjGiantTarget.topLeftCol + 1) {
-                isStrongKill = true;
-              }
-            }
-            if (isStrongKill) {
-              tjGiantTarget.hp -= 2;
-              log(`⚔️ 天将强杀巨将！2点伤害！`, 'warn');
-            } else {
-              tjGiantTarget.hp--;
-              log(`💢 天将攻击巨将，1点伤害`, 'warn');
-            }
-            if (tjGiantTarget.hp <= 0) {
-              log(`💀 巨将崩毁！`, 'warn');
-              for (let dr = 0; dr < 2; dr++) {
-                for (let dc = 0; dc < 2; dc++) {
-                  const ir = tjGiantTarget.topLeftRow + dr - ROW_MIN, ic = tjGiantTarget.topLeftCol + dc - COL_MIN;
-                  if (ir >= 0 && ir < ROWS && ic >= 0 && ic < COLS) {
-                    board[ir][ic] = null;
-                  }
-                }
-              }
-              giants.splice(giants.indexOf(tjGiantTarget), 1);
-            }
-          }
-board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: color };
+                      board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: color };
           });
 
           // 更新坐标
@@ -2135,6 +2082,7 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
     });
     canvas.addEventListener('mouseleave', ()=>tooltip.style.display='none');
   })();
+
 </script>
 </body>
 </html>
