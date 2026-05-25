@@ -61,6 +61,16 @@
 
 <script>
 
+
+
+
+
+
+
+
+
+
+
   (function() {
     const canvas = document.getElementById('chessCanvas');
     const ctx = canvas.getContext('2d');
@@ -1041,7 +1051,7 @@ const REVIVABLE_TYPES = ['车','马','炮','驼','骡','麒','飞车','战车','
         else if(['飞将','战将','异型将'].includes(piece.name)) {
           offsets=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
           if(piece.name==='战将')for(var ri=0;ri<8;ri++){var rd=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]][ri];for(var s=1;s<=8;s++){var nr2=row+rd[0]*s,nc2=col+rd[1]*s;if(nr2<ROW_MIN||nr2>ROW_MAX||nc2<COL_MIN||nc2>COL_MAX)break;var tg=board[nr2-ROW_MIN]?.[nc2-COL_MIN];if(tg){if(tg.color===enemy)offsets.push([nr2-row,nc2-col]);break;}}}
-          if(piece.name==='异型将'){var hc=color===RED?hasCastledRed:hasCastledBlack;if(!hc)for(var di=0;di<4;di++){var dir=[[-1,0],[1,0],[0,-1],[0,1]][di],tR=row+dir[0],tC=col+dir[1];if(tR<ROW_MIN||tR>ROW_MAX||tC<COL_MIN||tC>COL_MAX)continue;var tP=board[tR-ROW_MIN]?.[tC-COL_MIN];if(!tP||tP.color!==color)continue;if(tP.name&&(tP.name.startsWith('天将')||tP.name==='巨将'))continue;var aR=row-dir[0],aC=col-dir[1];if(aR<ROW_MIN||aR>ROW_MAX||aC<COL_MIN||aC>COL_MAX)continue;var clr=true,r2=row+dir[0],c2=col+dir[1];while(r2!==tR||c2!==tC){if(r2!==row||c2!==col){var mP=board[r2-ROW_MIN]?.[c2-COL_MIN];if(mP&&(mP.color!==color||mP===tP)){clr=false;break;}}r2+=dir[0];c2+=dir[1];}if(!clr)continue;var aP=board[aR-ROW_MIN]?.[aC-COL_MIN];if(aP&&aP.color===color)continue;moves.push({type:'castle',yiJiangRow:row,yiJiangCol:col,targetRow:tR,targetCol:tC,adjRow:aR,adjCol:aC,isEat:!!(aP&&aP.color===enemy),pieceName:'异型将'});}}}
+          if(piece.name==='异型将'){var hc=color===RED?hasCastledRed:hasCastledBlack;if(!hc)for(var di=0;di<4;di++){var dir=[[-1,0],[1,0],[0,-1],[0,1]][di],tR=row+dir[0],tC=col+dir[1];if(tR<ROW_MIN||tR>ROW_MAX||tC<COL_MIN||tC>COL_MAX)continue;var tP=board[tR-ROW_MIN]?.[tC-COL_MIN];if(!tP||tP.color!==color)continue;if(tP.name&&(tP.name.startsWith('天将')||tP.name==='巨将'))continue;var aR=row-dir[0],aC=col-dir[1];if(aR<ROW_MIN||aR>ROW_MAX||aC<COL_MIN||aC>COL_MAX)continue;var clr=true,r2=row+dir[0],c2=col+dir[1];while(r2!==tR||c2!==tC){if(r2!==row||c2!==col){var mP=board[r2-ROW_MIN]?.[c2-COL_MIN];if(mP&&(mP.color!==color||mP===tP)){clr=false;break;}}r2+=dir[0];c2+=dir[1];}if(!clr)continue;var aP=board[aR-ROW_MIN]?.[aC-COL_MIN];if(aP&&aP.color===color)continue;moves.push({type:'castle',yiJiangRow:row,yiJiangCol:col,targetRow:tR,targetCol:tC,adjRow:aR,adjCol:aC,isEat:!!(aP&&aP.color===enemy),pieceName:'异型将'});}}
         }
         else if(piece.name === '牵' || piece.name === '混') offsets = [[-1,-1],[-1,1],[1,-1],[1,1]];
         else if(piece.name === '笑' || piece.name === '瞒') offsets = [[-1,-1],[-1,1],[1,-1],[1,1],[-2,-2],[-2,2],[2,-2],[2,2]];
@@ -1615,8 +1625,11 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
         countPieces();
         if (checkGameEnd()) return true;
         return true;
+            }
+        }
       } catch(e) { log(`❌ 走法异常: ${e.message}`, 'error'); return false; }
     }
+    
     function autoStep() {
       if(!autoRunning) return;
       const w = checkWinner(); if(w) { log(`🏆 ${w==='red'?'红':'黑'}方清场获胜！`, 'warn'); stopAuto(); return; }
@@ -2174,7 +2187,582 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
       tooltip.style.display='block'; tooltip.style.left=(e.clientX+18)+'px'; tooltip.style.top=(e.clientY-50)+'px';
     });
     canvas.addEventListener('mouseleave', ()=>tooltip.style.display='none');
+  )();
+
+
+
+
+
+
+
+
+
+
+
+</script>
+</body>
+</html>
+function autoStep() {
+      if(!autoRunning) return;
+      const w = checkWinner(); if(w) { log(`🏆 ${w==='red'?'红':'黑'}方清场获胜！`, 'warn'); stopAuto(); return; }
+      const move = selectBestMove(currentPlayer);
+      if(!move) { log(`⚠️ 无合法走法，结束`, 'warn'); stopAuto(); return; }
+      log(`🤖 ${currentPlayer==='red'?'红':'黑'}方: ${move.pieceName} ${move.isEat?'吃子!':''} 至 (${move.toRow||''},${move.toCol||move.toLeftCol||''})`);
+      if(applyMove(move, currentPlayer)) { drawBoard(); if(apEnabled)apRemaining=apMax;
+          currentPlayer = currentPlayer===RED?BLACK:RED; statusBar.textContent = `🤖 ${currentPlayer==='red'?'红':'黑'}方思考中...`; }
+      else stopAuto();
+    }
+    function undoMove() {
+      if (autoRunning) return;
+      if (historyStack.length === 0) { log('没有可悔棋的步骤', 'warn'); return; }
+      const snapshot = historyStack.pop();
+      board = snapshot.board;
+      tianJiangs = snapshot.tianJiangs;
+      giants = snapshot.giants;
+      stackedDancers = snapshot.stackedDancers;
+      phasingGiants = snapshot.phasingGiants;
+      hasCastledRed = snapshot.hasCastledRed;
+      hasCastledBlack = snapshot.hasCastledBlack;
+      currentPlayer = snapshot.currentPlayer;
+      deadPoolBlack = snapshot.deadPoolBlack;
+      deadPoolRed = snapshot.deadPoolRed;
+      selectedPiece = null;
+      validMoves = [];
+      dangerMoves = [];
+                updatePhasing();
+
+      countPieces();
+      drawBoard();
+      log('↩️ 悔棋成功', 'info');
+    }
+    function startAuto() { if(autoRunning) return; autoRunning=true; document.getElementById('autoPlayBtn').disabled=true; document.getElementById('pauseBtn').disabled=false; autoTimer=setInterval(autoStep,600); }
+    function stopAuto() { autoRunning=false; clearInterval(autoTimer); document.getElementById('autoPlayBtn').disabled=false; document.getElementById('pauseBtn').disabled=true; statusBar.textContent='🔹 已暂停'; }
+    function resetAndCenter() { stopAuto(); initPieces(); currentPlayer=RED; drawBoard(); countPieces(); selectedPiece=null; validMoves=[]; const cx=getX(1)-boardContainer.clientWidth/2, cy=getY(10)-boardContainer.clientHeight/2; boardContainer.scrollTo({left:cx, top:cy, behavior:'smooth'}); statusBar.textContent='🔹 已复位并居中'; log('🔄 棋盘已复位'); }
+
+    document.getElementById('autoPlayBtn').addEventListener('click', startAuto);
+    document.getElementById('pauseBtn').addEventListener('click', stopAuto);
+    document.getElementById('resetBtn').addEventListener('click', resetAndCenter);
+    document.getElementById('bugBtn').addEventListener('click',function(){var ch=prompt('🐛 Bug博物馆\n1:天将分身术\n2:河界半格错位\n3:测试棋常驻\n输入编号或取消关闭');if(ch==='1'){bugMode='tianJiangClone';log('🐛 Bug:天将分身术已激活','warn');}else if(ch==='2'){bugMode='riverHalfShift';log('🐛 Bug:河界半格错位已激活','warn');}else if(ch==='3'){bugMode='testPieceForever';log('🐛 Bug:测试棋常驻已激活','warn');}else{bugMode=null;log('🐛 Bug模式已关闭','info');}drawBoard();});
+  document.getElementById('campaignBtn').addEventListener('click',function(){resetBoard();campaignMode='牧野之战';initCampaign('牧野之战');});
+
+    document.getElementById('revealBtn').addEventListener('click', function() {
+    if (currentPlayer === RED) revealTianJiangs(RED);
+    else revealTianJiangs(BLACK);
+    drawBoard();
+  });
+
+    document.getElementById('undoBtn').addEventListener('click', undoMove);
+    
+    function drawBoard() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle = '#fff9ef'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.strokeStyle='#777'; ctx.lineWidth=1;
+      for(let r=0; r<ROWS; r++){const y=getY(ROW_MIN+r); ctx.beginPath(); ctx.moveTo(PADDING,y); ctx.lineTo(canvas.width-PADDING,y); ctx.stroke();}
+      for(let c=0; c<COLS; c++){const x=getX(COL_MIN+c); ctx.beginPath(); ctx.moveTo(x,PADDING); ctx.lineTo(x,canvas.height-PADDING); ctx.stroke();}
+            
+            // 河界背景：紧贴行7的线和行10的线（使用格点坐标）
+      const riverTop = getY(7);      // 行7的线
+      const riverBottom = getY(10);  // 行10的线
+      ctx.fillStyle = '#1e5f7a';
+      ctx.globalAlpha = 0.25;
+      ctx.fillRect(PADDING, riverTop, canvas.width - 2 * PADDING, riverBottom - riverTop);
+      ctx.globalAlpha = 1;
+
+      // 河界文字放在两条线正中间
+      const riverCenterY = (riverTop + riverBottom) / 2;
+      ctx.font = `bold ${LINE_SPAN * 1.0}px 'KaiTi'`;
+      ctx.fillStyle = '#fff';
+      ctx.shadowColor = '#1a3a4a';
+      ctx.shadowBlur = 10;
+      ctx.fillText('楚  河', canvas.width * 0.3, riverCenterY);
+      ctx.fillText('汉  界', canvas.width * 0.55, riverCenterY);
+      ctx.shadowColor = 'transparent';
+      ctx.fillStyle = '#1e5f7a';
+      ctx.globalAlpha = 0.9;
+      ctx.fillText('楚  河', canvas.width * 0.3, riverCenterY);
+      ctx.fillText('汉  界', canvas.width * 0.55, riverCenterY);
+      ctx.globalAlpha = 1;
+      // 绘制桥标记
+      bridgeCells.forEach(b => {
+        const x = getX(b.col), y = getY(b.row);
+        ctx.fillStyle = '#b89c6c';
+        ctx.globalAlpha = 0.5;
+        ctx.fillRect(x - LINE_SPAN*0.4, y - LINE_SPAN*0.15, LINE_SPAN*0.8, LINE_SPAN*0.3);
+        ctx.globalAlpha = 1;
+        if (isYuBridge(b.col)) {
+          ctx.fillStyle = '#ffd700';
+          ctx.globalAlpha = 0.6;
+          ctx.fillRect(x - LINE_SPAN*0.35, y - LINE_SPAN*0.1, LINE_SPAN*0.7, LINE_SPAN*0.2);
+          ctx.globalAlpha = 1;
+        }
+      });
+      validMoves.forEach(m => {
+        const x = getX(m.col), y = getY(m.row);
+        ctx.beginPath(); ctx.arc(x, y, LINE_SPAN*0.15, 0, 2*Math.PI);
+        ctx.fillStyle = (selectedPiece && selectedPiece.color===BLACK) ? '#000000' : '#b91c1c';
+        ctx.fill(); ctx.strokeStyle = '#ffe0b5'; ctx.lineWidth = 1; ctx.stroke();
+      });
+
+      // 绘制危险移动点（白色）
+      dangerMoves.forEach(m => {
+        const x = getX(m.col), y = getY(m.row);
+        ctx.beginPath(); ctx.arc(x, y, LINE_SPAN*0.15, 0, 2*Math.PI);
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#888888';
+        ctx.lineWidth = 1;
+        ctx.fill();
+        ctx.stroke();
+      });
+      
+      medicalBlack.forEach(m=>{ const x=getX(m.col),y=getY(m.row); ctx.fillStyle='#cce0ff'; ctx.globalAlpha=0.5; ctx.fillRect(x,y,LINE_SPAN,LINE_SPAN); ctx.globalAlpha=1; ctx.strokeStyle='#b91c1c'; ctx.lineWidth=3; ctx.fillStyle='#b91c1c'; ctx.beginPath(); ctx.moveTo(x+LINE_SPAN*0.2,y+LINE_SPAN*0.35); ctx.lineTo(x+LINE_SPAN*0.8,y+LINE_SPAN*0.5); ctx.lineTo(x+LINE_SPAN*0.2,y+LINE_SPAN*0.65); ctx.fill(); });
+      medicalRed.forEach(m=>{ const x=getX(m.col),y=getY(m.row); ctx.fillStyle='#cce0ff'; ctx.globalAlpha=0.5; ctx.fillRect(x,y,LINE_SPAN,LINE_SPAN); ctx.globalAlpha=1; ctx.strokeStyle='#b91c1c'; ctx.lineWidth=3; ctx.fillStyle='#b91c1c'; ctx.beginPath(); ctx.moveTo(x+LINE_SPAN*0.8,y+LINE_SPAN*0.35); ctx.lineTo(x+LINE_SPAN*0.2,y+LINE_SPAN*0.5); ctx.lineTo(x+LINE_SPAN*0.8,y+LINE_SPAN*0.65); ctx.fill(); });
+
+      tianJiangs.forEach(t=>{
+        if (t.isHalved) {
+          // 半血天将：画标准圆形（加粗边框表示受伤）
+          const x = getX(t.leftCol), y = getY(t.row);
+          ctx.beginPath(); ctx.arc(x, y, LINE_SPAN*0.38, 0, 2*Math.PI);
+          ctx.fillStyle = t.color===RED ? RED_COLOR : BLACK_COLOR;
+          ctx.fill();
+          ctx.strokeStyle = '#ffe0b5';
+          ctx.lineWidth = 3;  // 加粗边框
+          ctx.stroke();
+          ctx.fillStyle = '#fff';
+          ctx.font = `bold ${LINE_SPAN*0.3}px KaiTi`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(`天将${t.type}`, x, y);
+        } else {
+          // 正常天将：画椭圆（原来的绘制方式）
+          const cx=(getX(t.leftCol)+getX(t.rightCol))/2, cy=getY(t.row);
+          ctx.beginPath(); ctx.ellipse(cx,cy,LINE_SPAN*1.0,LINE_SPAN*0.55,0,0,Math.PI*2);
+          ctx.fillStyle=t.color===RED?RED_COLOR:BLACK_COLOR; ctx.fill();
+          ctx.strokeStyle='#ffe0b5'; ctx.lineWidth=2.5; ctx.stroke();
+          ctx.fillStyle='#fff';
+          ctx.font=`bold ${LINE_SPAN*0.5}px KaiTi`;
+          ctx.textAlign='center';
+          ctx.textBaseline='middle';
+          ctx.fillText(`天将${t.type}`,cx,cy);
+        }
+      });
+      ctx.globalAlpha = 1;
+      giants.forEach(g=>{
+        const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2;
+        // 绘制巨将圆形
+        
+          if (phasingGiants.some(pg => pg.giant === g)) {
+            ctx.globalAlpha = 0.4 + 0.3 * Math.sin(Date.now() / 150);
+          }ctx.beginPath(); ctx.arc(cx,cy,LINE_SPAN*0.85,0,2*Math.PI);
+        ctx.fillStyle=g.color===RED?RED_COLOR:BLACK_COLOR; ctx.fill();
+          ctx.globalAlpha = 1;
+        ctx.strokeStyle='#ffe0b5'; ctx.lineWidth=3; ctx.stroke();
+        // 巨将文字
+        ctx.fillStyle='#fff'; ctx.font=`bold ${LINE_SPAN*0.5}px KaiTi`; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('巨将',cx,cy);
+        // 血条背景
+        const barW = LINE_SPAN * 1.5;  // 血条宽度
+        const barH = LINE_SPAN * 0.2;  // 血条高度
+        const barX = cx - barW / 2;
+        const barY = cy - LINE_SPAN * 0.85 - barH - 4;  // 血条放在巨将上方
+        ctx.fillStyle = '#555';
+        ctx.fillRect(barX, barY, barW, barH);
+        // 血量填充
+        const hpRatio = Math.max(0, g.hp / 4);
+        ctx.fillStyle = g.hp > 2 ? '#4caf50' : g.hp > 1 ? '#ff9800' : '#f44336';
+        ctx.fillRect(barX, barY, barW * hpRatio, barH);
+        // 血条边框
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(barX, barY, barW, barH);
+      });for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
+        const piece=board[r][c]; if(!piece || piece.name==='巨将') continue;
+        
+        // 检查这个格子是不是被某个天将占据（如果是，椭圆绘制已经画过了，这里跳过）
+        const isTianJiangCell = tianJiangs.some(tj => {
+          if (tj.isHalved) {
+            return tj.row === ROW_MIN + r && tj.leftCol === COL_MIN + c;
+          } else {
+            return (tj.row === ROW_MIN + r && tj.leftCol === COL_MIN + c) ||
+                   (tj.row === ROW_MIN + r && tj.rightCol === COL_MIN + c);
+          }
+        });
+        if (isTianJiangCell) continue;
+        
+        const x=getX(COL_MIN+c), y=getY(ROW_MIN+r);
+        ctx.beginPath(); ctx.arc(x,y,LINE_SPAN*0.38,0,2*Math.PI);
+        ctx.fillStyle=piece.color===RED?RED_COLOR:BLACK_COLOR; ctx.fill();
+        ctx.strokeStyle='#ffe0b5'; ctx.lineWidth=2; ctx.stroke();
+        if (selectedPiece && selectedPiece.type==='board' && selectedPiece.row===ROW_MIN+r && selectedPiece.col===COL_MIN+c) { ctx.lineWidth = 4; ctx.strokeStyle = '#fbbf24'; ctx.stroke(); }
+        ctx.fillStyle='#fff'; ctx.font=`bold ${LINE_SPAN*0.3}px KaiTi`; ctx.textAlign='center'; ctx.textBaseline='middle';
+        let dn = piece.name;
+        if(stackedDancers.find(d=>d.row===ROW_MIN+r && d.col===COL_MIN+c) && piece.name==='炮') dn='炮+舞';
+        ctx.fillText(dn, x, y);
+      }
+
+    }
+    initPieces(); drawBoard(); countPieces();
+    setTimeout(()=>{ const cx=getX(1)-boardContainer.clientWidth/2, cy=getY(10)-boardContainer.clientHeight/2; boardContainer.scrollTo({left:cx,top:cy,behavior:'auto'}); },150);
+
+    canvas.addEventListener('click', function(e) {
+      if(autoRunning) return;
+      const rect = canvas.getBoundingClientRect(), scaleX = canvas.width/rect.width, scaleY = canvas.height/rect.height;
+      const mx = (e.clientX-rect.left)*scaleX, my = (e.clientY-rect.top)*scaleY;
+      const logicCol = Math.round((mx-PADDING)/LINE_SPAN+COL_MIN), logicRow = Math.round((my-PADDING)/LINE_SPAN+ROW_MIN);
+      if (logicRow<ROW_MIN||logicRow>ROW_MAX||logicCol<COL_MIN||logicCol>COL_MAX) return;
+
+      // 巨将选择
+      for (const g of giants) { const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if ((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2) { selectedPiece={type:'giant', topLeftRow:g.topLeftRow, topLeftCol:g.topLeftCol, color:g.color}; const giantMoves=generateMoves(currentPlayer).filter(m=>m.type==='giant'&&m.giant.topLeftRow===g.topLeftRow&&m.giant.topLeftCol===g.topLeftCol); validMoves=[]; giantMoves.forEach(m=>{validMoves.push({row:m.toRow,col:m.toCol});validMoves.push({row:m.toRow,col:m.toCol+1});validMoves.push({row:m.toRow+1,col:m.toCol});validMoves.push({row:m.toRow+1,col:m.toCol+1});}); dangerMoves=[]; drawBoard(); return; } }
+      // 叠舞选择
+      for (const d of stackedDancers) { if(d.row===logicRow && d.col===logicCol) { selectedPiece={type:'stackedDancer', dancer:d, color:d.color}; validMoves=generateMoves(currentPlayer).filter(m=>m.type==='stackedDancer'&&m.dancer===d).map(m=>({row:m.toRow,col:m.toCol})); dangerMoves=[]; drawBoard(); return; } }
+      // ★ 优先处理天将互吃（必须在 piece 取 null 之前）
+      if (selectedPiece) {
+        const hoveredEnemyTJ = tianJiangs.find(tj => {
+          if (tj.color === currentPlayer) return false;
+          const cx = (getX(tj.leftCol) + getX(tj.rightCol)) / 2;
+          const cy = getY(tj.row);
+          return tj.isHalved
+            ? (mx - cx) ** 2 + (my - cy) ** 2 <= (LINE_SPAN * 0.38) ** 2
+            : (mx - cx) ** 2 / (LINE_SPAN * 1.0) ** 2 + (my - cy) ** 2 / (LINE_SPAN * 0.55) ** 2 <= 1;
+        });
+        if (hoveredEnemyTJ) {
+          const tj = hoveredEnemyTJ;
+          // 使用实际点击的格子列作为攻击目标，确保点哪打哪
+          let colsToTry = [];
+          if (logicCol === tj.leftCol || logicCol === tj.rightCol) {
+            colsToTry.push(logicCol);
+          } else {
+            // 四舍五入后不在天将格内（比如点在两格交界），两格都试试
+            colsToTry.push(tj.leftCol, tj.rightCol);
+          }
+          let attackMove = null;
+          for (const col of colsToTry) {
+            attackMove = generateMoves(currentPlayer).find(m => {
+              if (!m.isEat) return false;
+              // 普通棋子吃天将
+              if (if(m.type==='castle'&&selectedPiece.type==='board'&&m.yiJiangRow===selectedPiece.row&&m.yiJiangCol===selectedPiece.col&&m.targetRow===logicRow&&m.targetCol===logicCol)return true;
+          m.type === 'piece' && selectedPiece.type === 'board' &&
+                  m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col &&
+                  m.toRow === tj.row && m.toCol === col) return true;
+              // 天将吃天将（支持两格吃法）
+              if (m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' &&
+                  m.tj === selectedPiece.tj && m.toRow === tj.row &&
+                  (m.toLeftCol === col || (!selectedPiece.tj.isHalved && m.toLeftCol + 1 === col))) return true;
+              // 巨将吃天将
+              if (m.type === 'giant' && selectedPiece.type === 'giant' &&
+                  m.giant.topLeftRow === selectedPiece.topLeftRow && m.giant.topLeftCol === selectedPiece.topLeftCol &&
+                  m.toRow === tj.row && m.toCol === col) return true;
+              return false;
+            });
+            if (attackMove) break; // 找到就停止
+          }
+          if (attackMove) {
+            if (applyMove(attackMove, currentPlayer)) {
+              currentPlayer = currentPlayer === RED ? BLACK : RED;
+              selectedPiece = null;
+              validMoves = [];
+              dangerMoves = [];
+              drawBoard();
+              statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
+              return;
+            }
+          }
+        }
+      }
+      const r=logicRow-ROW_MIN, c=logicCol-COL_MIN; const piece=board[r]?.[c];
+            // 检查普通棋子攻击巨将
+      if (selectedPiece && selectedPiece.type === 'board') {
+        for (const g of giants) {
+          if (g.color !== currentPlayer &&
+              g.topLeftRow <= logicRow && logicRow <= g.topLeftRow + 1 &&
+              g.topLeftCol <= logicCol && logicCol <= g.topLeftCol + 1) {
+            const giantMove = generateMoves(currentPlayer).find(m =>
+              m.type === 'piece' && m.fromRow === selectedPiece.row &&
+              m.fromCol === selectedPiece.col && m.toRow === logicRow &&
+              m.toCol === logicCol
+            );
+            if (giantMove) {
+              if (applyMove(giantMove, currentPlayer)) {
+                currentPlayer = currentPlayer === RED ? BLACK : RED;
+                selectedPiece = null;
+                validMoves = [];
+                dangerMoves = [];
+                drawBoard();
+                statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
+                return;
+              }
+            }
+            break;
+          }
+        }
+      }
+
+      // 检查天将攻击巨将
+      if (selectedPiece && selectedPiece.type === 'tianjiang') {
+        for (const g of giants) {
+          if (g.color !== currentPlayer &&
+              g.topLeftRow <= logicRow && logicRow <= g.topLeftRow + 1 &&
+              g.topLeftCol <= logicCol && logicCol <= g.topLeftCol + 1) {
+            const tj = selectedPiece.tj;
+            const giantMove = generateMoves(currentPlayer).find(m =>
+              m.type === 'tianjiang' && m.tj === tj &&
+              m.toRow === logicRow &&
+              (m.toLeftCol === logicCol || (!tj.isHalved && m.toLeftCol + 1 === logicCol))
+            );
+            if (giantMove) {
+              if (applyMove(giantMove, currentPlayer)) {
+                currentPlayer = currentPlayer === RED ? BLACK : RED;
+                selectedPiece = null;
+                validMoves = [];
+                dangerMoves = [];
+                drawBoard();
+                statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
+                return;
+              }
+            }
+            break;
+          }
+        }
+      }
+
+// 如果已选中己方棋子，且点击的是敌方棋子，优先尝试吃子移动
+      if (selectedPiece && piece && piece.color !== currentPlayer && piece.name !== '巨将'){
+        const move = generateMoves(currentPlayer).find(m => {
+          if (m.type === 'piece' && selectedPiece.type === 'board' && m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col && m.toRow === logicRow && m.toCol === logicCol) return true;
+          if (m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' && m.tj === selectedPiece.tj && m.toRow === logicRow && (m.toLeftCol === logicCol || (!selectedPiece.tj.isHalved && m.toLeftCol + 1 === logicCol)) && m.isEat) return true;
+          if (m.type === 'giant' && selectedPiece.type === 'giant' && m.giant.topLeftRow === selectedPiece.topLeftRow && m.giant.topLeftCol === selectedPiece.topLeftCol && logicRow >= m.toRow && logicRow <= m.toRow+1 && logicCol >= m.toCol && logicCol <= m.toCol+1) return true;
+          if (m.type === 'stackedDancer' && selectedPiece.type === 'stackedDancer' && m.dancer === selectedPiece.dancer && m.toRow === logicRow && m.toCol === logicCol) return true;
+          return false;
+        });
+        if (move) {
+          if (applyMove(move, currentPlayer)) {
+            currentPlayer = currentPlayer === RED ? BLACK : RED;
+            selectedPiece = null;
+            validMoves = [];
+            dangerMoves = [];
+            drawBoard();
+            statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
+            return;
+          }
+        }
+      }
+
+      // 点击普通己方棋子（非天将），选中并计算危险点
+        if(piece && piece.color === currentPlayer && piece.name!=='巨将'&& !piece.name.startsWith('天将')) { 
+        if(selectedPiece?.type==='board'&&selectedPiece.row===logicRow&&selectedPiece.col===logicCol) {selectedPiece=null; validMoves=[]; dangerMoves=[]; drawBoard(); return;} 
+        selectedPiece={type:'board', row:logicRow, col:logicCol, color:piece.color};
+        validMoves=generateMoves(currentPlayer).filter(m=>m.type==='piece'&&m.fromRow===logicRow&&m.fromCol===logicCol).map(m=>({row:m.toRow,col:m.toCol}));
+
+        // 计算危险移动点（保存并恢复目标格棋子）
+        dangerMoves = [];
+        const testPiece = board[logicRow-ROW_MIN]?.[logicCol-COL_MIN];
+        if (testPiece) {
+          const savedBoard = board[logicRow-ROW_MIN][logicCol-COL_MIN];
+          for (const mv of validMoves) {
+            const targetPiece = board[mv.row-ROW_MIN]?.[mv.col-COL_MIN];
+            board[logicRow-ROW_MIN][logicCol-COL_MIN] = null;
+            board[mv.row-ROW_MIN][mv.col-COL_MIN] = testPiece;
+            const enemyColor = currentPlayer === RED ? BLACK : RED;
+            let underAttack = false;
+            for (let ri = 0; ri < ROWS && !underAttack; ri++) {
+              for (let ci = 0; ci < COLS && !underAttack; ci++) {
+                const ep = board[ri][ci];
+                if (ep && ep.color === enemyColor) {
+                  if (canPieceAttackCell(ep, ROW_MIN+ri, COL_MIN+ci, mv.row, mv.col)) {
+                    underAttack = true;
+                  }
+                }
+              }
+            }
+            if (!underAttack) {
+              for (const etj of tianJiangs) {
+                if (etj.color === enemyColor) {
+                  const cells = etj.isHalved ? [{row: etj.row, col: etj.leftCol}] : [{row: etj.row, col: etj.leftCol}, {row: etj.row, col: etj.rightCol}];
+                  for (const cell of cells) {
+                    if (canTianJiangAttackCell(etj, cell.row, cell.col, mv.row, mv.col)) { underAttack = true; break; }
+                  }
+                }
+              }
+            }
+            if (underAttack) dangerMoves.push(mv);
+            board[mv.row-ROW_MIN][mv.col-COL_MIN] = targetPiece;
+            board[logicRow-ROW_MIN][logicCol-COL_MIN] = savedBoard;
+          }
+        }
+        drawBoard(); return; 
+      }
+      // 处理己方棋子攻击敌方天将（天将互吃）
+      if (selectedPiece) {
+        // 精确判断鼠标是否在敌方天将身上
+        const hoveredEnemyTJ = tianJiangs.find(tj => {
+          if (tj.color === currentPlayer) return false;
+          const cx = (getX(tj.leftCol) + getX(tj.rightCol)) / 2;
+          const cy = getY(tj.row);
+          return tj.isHalved
+            ? (mx - cx) ** 2 + (my - cy) ** 2 <= (LINE_SPAN * 0.38) ** 2
+            : (mx - cx) ** 2 / (LINE_SPAN * 1.0) ** 2 + (my - cy) ** 2 / (LINE_SPAN * 0.55) ** 2 <= 1;
+        });
+        if (hoveredEnemyTJ) {
+          const tj = hoveredEnemyTJ;
+          const attackMove = generateMoves(currentPlayer).find(m => {
+            if (!m.isEat) return false;
+            // 普通棋子吃天将
+            if (m.type === 'piece' && selectedPiece.type === 'board' &&
+                m.fromRow === selectedPiece.row && m.fromCol === selectedPiece.col &&
+                m.toRow === tj.row && (m.toCol === tj.leftCol || m.toCol === tj.rightCol)) return true;
+            // 天将吃天将
+            if (m.type === 'tianjiang' && selectedPiece.type === 'tianjiang' &&
+                m.tj === selectedPiece.tj && m.toRow === tj.row &&
+                (m.toLeftCol === tj.leftCol || m.toLeftCol === tj.rightCol ||
+                 (!selectedPiece.tj.isHalved && (m.toLeftCol + 1 === tj.leftCol || m.toLeftCol + 1 === tj.rightCol)))) return true;
+            // 巨将吃天将
+            if (m.type === 'giant' && selectedPiece.type === 'giant' &&
+                m.giant.topLeftRow === selectedPiece.topLeftRow && m.giant.topLeftCol === selectedPiece.topLeftCol &&
+                m.toRow === tj.row && (m.toCol === tj.leftCol || m.toCol === tj.rightCol)) return true;
+            return false;
+          });
+          if (attackMove) {
+            if (applyMove(attackMove, currentPlayer)) {
+              currentPlayer = currentPlayer === RED ? BLACK : RED;
+              selectedPiece = null;
+              validMoves = [];
+              dangerMoves = [];
+              drawBoard();
+              statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
+              return;
+            }
+          }
+        }
+      }
+      // 点击空格移动
+      if(selectedPiece && !piece) {
+        const move = generateMoves(currentPlayer).find(m=>{
+          if(m.type==='piece'&&m.fromRow===selectedPiece.row&&m.fromCol===selectedPiece.col&&m.toRow===logicRow&&m.toCol===logicCol) return true;
+          if(m.type==='tianjiang'&&selectedPiece.type==='tianjiang'&&m.tj===selectedPiece.tj&&m.toRow===logicRow&&(m.toLeftCol===logicCol||(!selectedPiece.tj.isHalved&&m.toLeftCol+1===logicCol))) return true;
+          if(m.type==='giant'&&selectedPiece.type==='giant'&&m.giant.topLeftRow===selectedPiece.topLeftRow&&m.giant.topLeftCol===selectedPiece.topLeftCol&&logicRow>=m.toRow&&logicRow<=m.toRow+1&&logicCol>=m.toCol&&logicCol<=m.toCol+1) return true;
+          if(m.type==='stackedDancer'&&selectedPiece.type==='stackedDancer'&&m.dancer===selectedPiece.dancer&&m.toRow===logicRow&&m.toCol===logicCol) return true;
+          return false;
+        });
+        if(move) { applyMove(move, currentPlayer); currentPlayer = currentPlayer===RED?BLACK:RED; selectedPiece=null; validMoves=[]; dangerMoves=[]; drawBoard(); statusBar.textContent=`手动移动完成，轮到${currentPlayer==='red'?'红':'黑'}方`; return; }
+      } 
+
+      // 天将点击处理（放在最后，不拦截吃子）
+      for (const tj of tianJiangs) {
+        // 半血用圆形碰撞，正常用椭圆碰撞
+        const cx = (getX(tj.leftCol) + getX(tj.rightCol)) / 2;
+        const cy = getY(tj.row);
+        const hit = tj.isHalved
+          ? (mx - cx) ** 2 + (my - cy) ** 2 <= (LINE_SPAN * 0.38) ** 2
+          : (mx - cx) ** 2 / (LINE_SPAN * 1.0) ** 2 + (my - cy) ** 2 / (LINE_SPAN * 0.55) ** 2 <= 1;
+        if (!hit) continue;
+
+        // 如果己方天将已选中，且点击位置在己方天将上，检查是否有可执行的吃子移动
+        if (selectedPiece && selectedPiece.type === 'tianjiang' && selectedPiece.tj === tj && tj.color === currentPlayer) {
+          // 尝试匹配吃子移动（目标可能是普通棋子或敌方天将）
+          const targetCols = [logicCol];
+          // 如果点击位置在天将的左右格之间，把两格都加入候选
+          if (logicCol !== tj.leftCol && logicCol !== tj.rightCol) {
+            targetCols.push(tj.leftCol, tj.rightCol);
+          }
+          let move = null;
+          for (const col of targetCols) {
+            move = generateMoves(currentPlayer).find(m =>
+              m.type === 'tianjiang' && m.tj === tj && m.isEat &&
+              m.toRow === logicRow && (m.toLeftCol === col || (!tj.isHalved && m.toLeftCol + 1 === col))
+            );
+            if (move) break;
+          }
+          if (move) {
+            if (applyMove(move, currentPlayer)) {
+              currentPlayer = currentPlayer === RED ? BLACK : RED;
+              selectedPiece = null;
+              validMoves = [];
+              dangerMoves = [];
+              drawBoard();
+              statusBar.textContent = `手动移动完成，轮到${currentPlayer === 'red' ? '红' : '黑'}方`;
+              return;
+            }
+          }
+          // 即使没有吃子移动，也保留选中状态，不做任何事
+          return;
+        }
+
+        // 敌方天将，且没有己方天将选中，直接跳过
+        if (tj.color !== currentPlayer) continue;
+
+        // 正常选中/取消选中己方天将
+        if (selectedPiece?.type === 'tianjiang' && selectedPiece.tj === tj) {
+          selectedPiece = null; validMoves = []; dangerMoves = []; drawBoard(); return;
+        }
+
+        // 选中己方天将，显示合法移动位置
+        selectedPiece = { type: 'tianjiang', tj, color: tj.color };
+        const tjMoves = generateMoves(currentPlayer).filter(m => m.type === 'tianjiang' && m.tj === tj);
+        const cells = [];
+        tjMoves.forEach(m => {
+          cells.push({ row: m.toRow, col: m.toLeftCol });
+          if (!tj.isHalved) cells.push({ row: m.toRow, col: m.toLeftCol + 1 });
+        });
+        validMoves = cells;
+
+        // 计算危险移动点
+        dangerMoves = [];
+        if (tj.color === currentPlayer) {
+          const savedLeft = tj.leftCol, savedRight = tj.rightCol, savedRow = tj.row, savedHalved = tj.isHalved;
+          for (const mv of validMoves) {
+            tj.row = mv.row; tj.leftCol = mv.col; tj.rightCol = tj.isHalved ? mv.col : mv.col + 1;
+            const enemyColor = currentPlayer === RED ? BLACK : RED;
+            let underAttack = false;
+            for (let ri = 0; ri < ROWS && !underAttack; ri++) {
+              for (let ci = 0; ci < COLS && !underAttack; ci++) {
+                const ep = board[ri][ci];
+                if (ep && ep.color === enemyColor) {
+                  if (canPieceAttackCell(ep, ROW_MIN+ri, COL_MIN+ci, mv.row, mv.col)) underAttack = true;
+                  if (!tj.isHalved && !underAttack && canPieceAttackCell(ep, ROW_MIN+ri, COL_MIN+ci, mv.row, mv.col+1)) underAttack = true;
+                }
+              }
+            }
+            if (!underAttack) {
+              for (const etj of tianJiangs) {
+                if (etj.color === enemyColor) {
+                  const ecells = etj.isHalved ? [{row: etj.row, col: etj.leftCol}] : [{row: etj.row, col: etj.leftCol}, {row: etj.row, col: etj.rightCol}];
+                  for (const ec of ecells) {
+                    if (canTianJiangAttackCell(etj, ec.row, ec.col, mv.row, mv.col)) underAttack = true;
+                    if (!tj.isHalved && !underAttack && canTianJiangAttackCell(etj, ec.row, ec.col, mv.row, mv.col+1)) underAttack = true;
+                  }
+                }
+              }
+            }
+            if (underAttack) dangerMoves.push(mv);
+          }
+          tj.row = savedRow; tj.leftCol = savedLeft; tj.rightCol = savedRight; tj.isHalved = savedHalved;
+        }
+
+        drawBoard();
+        return;
+      }
+
+      selectedPiece=null; validMoves=[]; dangerMoves=[]; drawBoard();
+    });
+
+    canvas.addEventListener('mousemove', function(e) {
+      const rect=canvas.getBoundingClientRect(), scaleX=canvas.width/rect.width, scaleY=canvas.height/rect.height;
+      const mx=(e.clientX-rect.left)*scaleX, my=(e.clientY-rect.top)*scaleY;
+      const logicCol=Math.round((mx-PADDING)/LINE_SPAN+COL_MIN), logicRow=Math.round((my-PADDING)/LINE_SPAN+ROW_MIN);
+      if(logicRow<ROW_MIN||logicRow>ROW_MAX||logicCol<COL_MIN||logicCol>COL_MAX){tooltip.style.display='none';return;}
+      let pieceName='', pieceColor='', ruleText='';
+      const stacked = stackedDancers.find(d=>d.row===logicRow && d.col===logicCol);
+      if(stacked) { pieceName='舞(叠放)'; pieceColor=stacked.color===RED?'红':'黑'; ruleText=ruleMap['舞']||''; }
+      if(!pieceName) for(const tj of tianJiangs){ const cx=(getX(tj.leftCol)+getX(tj.rightCol))/2, cy=getY(tj.row); if((mx-cx)**2/(LINE_SPAN*1.0)**2+(my-cy)**2/(LINE_SPAN*0.55)**2<=1){ pieceName='天将'+tj.type; pieceColor=tj.color===RED?'红':'黑'; ruleText=ruleMap[pieceName]||''; break; } }
+      if(!pieceName) for(const g of giants){ const cx=(getX(g.topLeftCol)+getX(g.topLeftCol+1))/2, cy=(getY(g.topLeftRow)+getY(g.topLeftRow+1))/2; if((mx-cx)**2+(my-cy)**2<=(LINE_SPAN*0.85)**2){ pieceName='巨将'; pieceColor=g.color===RED?'红':'黑'; ruleText=ruleMap['巨将']||''; break; } }
+      if(!pieceName){ const r=logicRow-ROW_MIN, c=logicCol-COL_MIN; const piece=board[r]?.[c]; if(piece&&piece.name!=='巨将'){ pieceName=piece.name; pieceColor=piece.color===RED?'红':'黑'; ruleText=ruleMap[pieceName]||''; } else pieceName='空格'; }
+      tooltipCoord.textContent=`📍 行 ${logicRow} · 列 ${logicCol}`; tooltipPiece.textContent=pieceColor?`♟️ ${pieceColor}方 · ${pieceName}`:`· ${pieceName} ·`; tooltipRule.textContent=ruleText;
+      tooltip.style.display='block'; tooltip.style.left=(e.clientX+18)+'px'; tooltip.style.top=(e.clientY-50)+'px';
+    });
+    canvas.addEventListener('mouseleave', ()=>tooltip.style.display='none');
   })();
+
+
+
 
 </script>
 </body>
