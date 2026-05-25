@@ -940,6 +940,7 @@
                     if (!phasingGiants.some(pg => pg.giant === g)) {
             moves.push({type:'giant', giant:g, toRow:nr, toCol:nc, isEat: canEatGiant, pieceName:'巨将'});
         }
+          }
       });
 
        for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
@@ -1532,7 +1533,6 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
               board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
               board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
             // 3. 普通吃子
-            } else {// 3. 普通吃子
             } else {
               if (target && target.color !== color) {
                 if (REVIVABLE_TYPES.includes(target.name)) {
@@ -1544,12 +1544,11 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
               board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
             }
           }
-        }
-
-        }
+          }
+          }
         countPieces();
-        if        }
-return true;
+        if (checkGameEnd()) return true;
+        return true;
       } catch(e) { log(`❌ 走法异常: ${e.message}`, 'error'); return false; }
     }
     function autoStep() {
