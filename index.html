@@ -44,6 +44,8 @@
   <button class="btn" id="autoPlayBtn">▶️ 开始自动对战</button>
   <button class="btn" id="pauseBtn" disabled>⏸️ 暂停</button>
   <button class="btn" id="resetBtn">⟳ 复位并居中</button>
+      <button id="revealBtn" class="btn">天将现身</button>
+      <button id="ammoBtn" class="btn">弹药:普通弹</button>
   <button class="btn" id="undoBtn">↩️ 悔棋</button>
   <div class="log-window" id="logPanel"><div class="log-entry">📋 三十六计第三批+聊斋全系已加入 · 点击棋子显示合法移动位置</div></div>
 </div>
@@ -1882,6 +1884,17 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
 
     document.getElementById('autoPlayBtn').addEventListener('click', startAuto);
     document.getElementById('pauseBtn').addEventListener('click', stopAuto);
+    document.getElementById('revealBtn').addEventListener('click', function() {
+      if (currentPlayer === RED) revealTianJiangs(RED);
+      else revealTianJiangs(BLACK);
+      drawBoard();
+    });
+    document.getElementById('ammoBtn').addEventListener('click', function() {
+      currentAmmoIndex = (currentAmmoIndex + 1) % AMMO_TYPES.length;
+      const type = AMMO_TYPES[currentAmmoIndex];
+      log('🔫 弹药切换: ' + AMMO_NAMES[type], 'info');
+      document.getElementById('ammoBtn').textContent = '弹药:' + AMMO_NAMES[type];
+    });
     document.getElementById('resetBtn').addEventListener('click', resetAndCenter);
     document.getElementById('undoBtn').addEventListener('click', undoMove);
     
