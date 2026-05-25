@@ -71,6 +71,7 @@
 
 
 
+
   (function() {
     const canvas = document.getElementById('chessCanvas');
     const ctx = canvas.getContext('2d');
@@ -1626,7 +1627,7 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
         if (checkGameEnd()) return true;
         return true;
             }
-        }
+        
       } catch(e) { log(`❌ 走法异常: ${e.message}`, 'error'); return false; }
     }
     
@@ -2188,6 +2189,7 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
     });
     canvas.addEventListener('mouseleave', ()=>tooltip.style.display='none');
   )();
+
 
 
 
