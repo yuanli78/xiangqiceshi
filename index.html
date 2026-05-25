@@ -125,6 +125,12 @@
     let validMoves = [];
     let dangerMoves = [];   // 存储移动后会被吃的目标格子
     let fireCells = [];  // 燃烧弹着火格 {row, col, turnsLeft: 3}
+    let apRed = 5, apBlack = 5;  // AP值
+    const MAX_AP = 5;
+    let currentWeather = "sunny"; // sunny, fog, rain, frost
+    let weatherTurnsLeft = 0;
+    const WEATHER_TYPES = ["sunny", "fog", "rain", "frost"];
+    const WEATHER_NAMES = {sunny: '晴天', fog: '大雾', rain: '暴雨', frost: '霜冻'};
     let ammoMode = {};  // { color: { activePiece: {row, col}, type: "normal"/"shrapnel"/"explosive"/"chain"/"fire" } }
     const AMMO_TYPES = ["normal", "shrapnel", "explosive", "chain", "fire"];
     const AMMO_NAMES = { normal: "普通弹", shrapnel: "霰弹", explosive: "爆炸弹", chain: "链弹", fire: "燃烧弹" };
@@ -1202,6 +1208,12 @@ function tianJiangHasValidMove(tj, color) {
         else if(piece.name === '追' || piece.name === '截') for(let step=1; step<=8; step++) offsets.push([-step,0],[step,0],[0,-step],[0,step]);
         else if(piece.name === '交' || piece.name === '涉') { const fwd=color===BLACK?1:-1; offsets.push([0,-1],[0,1],[-fwd,0]); }
         else if(piece.name === '日' || piece.name === '月' || piece.name === '卫') { offsets.push([0,-1],[0,1]); if(piece.name!=='卫') offsets.push([-1,0],[1,0]); }
+        // 天气系统：日/月移动时切换天气
+        if (piece.name === '日' || piece.name === '月') {
+          const nextIdx = (WEATHER_TYPES.indexOf(currentWeather) + 1) % WEATHER_TYPES.length;
+          currentWeather = WEATHER_TYPES[nextIdx];
+          log('🌤️ 天气切换为：' + WEATHER_NAMES[currentWeather], 'info');
+        }
         else if(piece.name === '城') offsets = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
         else if(piece.name === '舞') offsets = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
         else if(piece.name === '牵' || piece.name === '混') offsets = [[-1,-1],[-1,1],[1,-1],[1,1]];
@@ -1265,6 +1277,12 @@ function tianJiangHasValidMove(tj, color) {
               offsets.push([tr - row, tc - col]);
             }
           }
+        }
+        else if(piece.name === '虫') {
+          // 虫（BugMuseum模式）：随机移动
+          const dirs = [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]];
+          offsets = dirs.filter(()=>Math.random()>0.5);
+          if (offsets.length === 0) offsets = [[Math.random()>0.5?1:-1,0]];
         }
         else if(piece.name === '画' || piece.name === '促') continue; // 画不能主动移动，促初始不能移动
         else offsets = [[-1,0],[1,0],[0,-1],[0,1]];
@@ -1346,6 +1364,9 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
       }
       score += (10 - Math.abs(toCol - 1)) * 2;
       score += Math.random() * 3;
+      // 天气对分数的影响
+      if (currentWeather === 'fog') score -= 10;
+      if (currentWeather === 'rain') score -= 5;
       return score;
     }
 
@@ -2132,7 +2153,7 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
           }
           if (attackMove) {
             if (applyMove(attackMove, currentPlayer)) {
-              currentPlayer = currentPlayer === RED ? BLACK : RED;
+              currentPlayer = currentPlayer === RED ? BLACK : RED; if (currentPlayer === RED) apBlack = MAX_AP; else apRed = MAX_AP;
               selectedPiece = null;
               validMoves = [];
               dangerMoves = [];
@@ -2157,7 +2178,7 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
             );
             if (giantMove) {
               if (applyMove(giantMove, currentPlayer)) {
-                currentPlayer = currentPlayer === RED ? BLACK : RED;
+                currentPlayer = currentPlayer === RED ? BLACK : RED; if (currentPlayer === RED) apBlack = MAX_AP; else apRed = MAX_AP;
                 selectedPiece = null;
                 validMoves = [];
                 dangerMoves = [];
@@ -2185,7 +2206,7 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
             );
             if (giantMove) {
               if (applyMove(giantMove, currentPlayer)) {
-                currentPlayer = currentPlayer === RED ? BLACK : RED;
+                currentPlayer = currentPlayer === RED ? BLACK : RED; if (currentPlayer === RED) apBlack = MAX_AP; else apRed = MAX_AP;
                 selectedPiece = null;
                 validMoves = [];
                 dangerMoves = [];
@@ -2210,7 +2231,7 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
         });
         if (move) {
           if (applyMove(move, currentPlayer)) {
-            currentPlayer = currentPlayer === RED ? BLACK : RED;
+            currentPlayer = currentPlayer === RED ? BLACK : RED; if (currentPlayer === RED) apBlack = MAX_AP; else apRed = MAX_AP;
             selectedPiece = null;
             validMoves = [];
             dangerMoves = [];
@@ -2297,7 +2318,7 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
           });
           if (attackMove) {
             if (applyMove(attackMove, currentPlayer)) {
-              currentPlayer = currentPlayer === RED ? BLACK : RED;
+              currentPlayer = currentPlayer === RED ? BLACK : RED; if (currentPlayer === RED) apBlack = MAX_AP; else apRed = MAX_AP;
               selectedPiece = null;
               validMoves = [];
               dangerMoves = [];
@@ -2348,7 +2369,7 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
           }
           if (move) {
             if (applyMove(move, currentPlayer)) {
-              currentPlayer = currentPlayer === RED ? BLACK : RED;
+              currentPlayer = currentPlayer === RED ? BLACK : RED; if (currentPlayer === RED) apBlack = MAX_AP; else apRed = MAX_AP;
               selectedPiece = null;
               validMoves = [];
               dangerMoves = [];
