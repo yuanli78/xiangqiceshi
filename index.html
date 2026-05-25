@@ -135,6 +135,7 @@
       '车': 280, '飞车': 320, '战车': 310, '异型车': 300,
       '炮': 260, '飞炮': 300, '战炮': 290, '抛石器': 270, '异型炮': 280,
       '兵': 100, '重兵': 120, '丁': 110, '勇': 110, '步': 130, '步兵': 140, '斥': 150, '烈': 150,
+      '金兵': 150, '木兵': 150, '水兵': 150, '火兵': 150, '土兵': 150, '全五行': 300,
       '雷': 120, '军师': 300, '御': 280, '鹿': 260, '蝉': 250, '后': 350,
       '驼': 250, '悬': 260, '翔': 270, '天兵': 400, '巫': 300,
       '诏': 250, '政': 280, '官': 230, '追': 240, '截': 220, '交': 200, '涉': 200, '日': 150, '月': 150, '卫': 180,
@@ -192,6 +193,12 @@
       '影兵': '走:横竖一格\n光环:兵卒类不受河界限制',
       '烈': '走:横竖一格\n技能:可在医疗处献祭复活己方主力',
       '雷': '走:横竖任意格(不可过河)\n吃:不能吃子',
+      '金兵': '走:左右一格\n吃:同走法(五行·金)',
+      '木兵': '走:己方半场斜一格\n吃:同走法(五行·木)',
+      '水兵': '走:后退一格\n吃:同走法(五行·水)',
+      '火兵': '走:前跳两格\n吃:同走法(五行·火)',
+      '土兵': '走:己方半场横竖一格\n吃:同走法(五行·土)',
+      '全五行': '走:金木水火土全部走法\n吃:同走法',
       '军师': '走:同炮吃法走法(不可过河)\n吃:不能吃子',
       '御': '走:横竖斜任意格(不可过河)\n吃:仅可左右或后方一格吃子',
       '鹿': '走:目字(无蹩腿)\n吃:同走法；双鹿紧邻须联动',
@@ -676,6 +683,9 @@ function tianJiangHasValidMove(tj, color) {
        }
      }
      // 将类（飞将、战将等）横竖斜一格
+      if (['金兵','木兵','水兵','火兵','土兵','全五行'].includes(name)) {
+        if (Math.abs(dr) <= 1 && Math.abs(dc) <= 1) return true;
+      }
      if (['飞将','战将','异型将'].includes(name)) {
        if (Math.abs(dr) <= 1 && Math.abs(dc) <= 1) return true;
        // 战将远距离吃子（直线或斜线无障碍）
@@ -991,6 +1001,8 @@ function tianJiangHasValidMove(tj, color) {
         if(piece.name==='炮' && stackedDancers.some(d=>d.row===ROW_MIN+r && d.col===COL_MIN+c && d.color===color)) continue;
         const row=ROW_MIN+r, col=COL_MIN+c;
         if(piece.name==='国象' && !isOwnHalf(row, color)) continue;
+        if((piece.name==='土兵'||piece.name==='木兵') && !isOwnHalf(row, color)) continue;
+        if((piece.name==='土兵'||piece.name==='木兵') && !isOwnHalf(row, color)) continue;
 
         let offsets = []; 
         if(['象','飞象','战象'].includes(piece.name)) offsets = [[-2,-2],[-2,2],[2,-2],[2,2],[-1,-1],[-1,1],[1,-1],[1,1]];
@@ -1072,6 +1084,14 @@ function tianJiangHasValidMove(tj, color) {
             }
           }
         }
+        else if(['金兵','木兵','水兵','火兵','土兵','全五行'].includes(piece.name)) {
+          const fwd = color === BLACK ? 1 : -1;
+          if (piece.name === '金兵' || piece.name === '全五行') offsets.push([0,-1],[0,1]);
+          if (piece.name === '木兵' || piece.name === '全五行') { if (isOwnHalf(row, color)) offsets.push([-fwd,-1],[-fwd,1]); }
+          if (piece.name === '水兵' || piece.name === '全五行') offsets.push([-fwd,0]);
+          if (piece.name === '火兵' || piece.name === '全五行') offsets.push([-2*fwd,0]);
+          if (piece.name === '土兵' || piece.name === '全五行') { if (isOwnHalf(row, color)) offsets.push([-1,0],[1,0],[0,-1],[0,1]); }
+        }
         else if(piece.name === '狐') offsets = [[-1,-1],[-1,1],[1,-1],[1,1]];
         else if(piece.name === '测试') {
           // 测试棋子：全盘任意移动，全盘任意吃子
@@ -1128,6 +1148,7 @@ canEat = (target && target.color === enemy) || occupiedByEnemyTianJiang;
           if (piece.name !== '测试') {
              // 下面原有的所有 canEat 修改逻辑都保持不动
           if(['雷','军师','诏','政','截','日','月','卫','城','舞','美','借','调','牵','混','假','欲','无','关','上','空','走','狐','鬼','蛇','画','促','围','李','砖','柱','主','釜'].includes(piece.name)) canEat = false;
+        if(piece.name==='金兵'||piece.name==='木兵'||piece.name==='水兵'||piece.name==='火兵'||piece.name==='土兵'||piece.name==='全五行') { if(target && target.color===enemy) canEat=true; else canEat=false; }
           if(piece.name==='追') { const fwd = color===BLACK?1:-1; if(dr!==fwd) canEat=false; }
           if(piece.name==='擒') { if(target && (target.name.includes('天将')||target.name==='飞将'||target.name==='战将'||target.name==='异型将')) canEat=true; else canEat=false; }
           if(piece.name==='笑') canEat = true;
