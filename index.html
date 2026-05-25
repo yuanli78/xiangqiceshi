@@ -94,6 +94,7 @@
     let currentPlayer = RED;
     let autoRunning = false, autoTimer = null;
     let deadPoolBlack = [], deadPoolRed = [];
+let phasingPieces = [];
     const REVIVABLE_TYPES = ['车','马','炮','驼','骡','麒','飞车','战车','飞马','战马','飞炮','战炮','抛石器','悬','翔','追','截','轰'];
     const medicalBlack = [{row:1,col:-18},{row:1,col:-16},{row:1,col:-14}];
     const medicalRed = [{row:13,col:16},{row:13,col:18},{row:13,col:20}];
@@ -283,7 +284,21 @@
       return { black, red };
     }
 
-    function initPieces() {
+    function updatePhasing() {
+  const toRemove = [];
+  phasingPieces.forEach(pp => { pp.turnsLeft--; if (pp.turnsLeft <= 0) toRemove.push(pp); });
+  toRemove.forEach(pp => {
+    const r = pp.row - ROW_MIN, c2 = pp.col - COL_MIN;
+    if (r >= 0 && r < ROWS && c2 >= 0 && c2 < COLS && board[r]?.[c2] && board[r][c2].name === pp.name && board[r][c2].color === pp.color) {
+      board[r][c2] = null;
+    }
+    const idx = phasingPieces.indexOf(pp);
+    if (idx > -1) phasingPieces.splice(idx, 1);
+    log(`💀 ${pp.color === RED ? '红' : '黑'}方${pp.name} 虚影消散，被巨将吞噬！`, 'warn');
+  });
+}
+
+function initPieces() {
       board = Array(ROWS).fill().map(() => Array(COLS).fill(null));
       tianJiangs = []; giants = []; stackedDancers = [];
       deadPoolBlack = []; deadPoolRed = [];
@@ -1084,6 +1099,7 @@
           tianJiangs: tianJiangs.map(tj => ({ ...tj })),
           giants: giants.map(g => ({ ...g })),
           stackedDancers: stackedDancers.map(d => ({ ...d })),
+          phasingPieces: phasingPieces.map(pp => ({ ...pp })),
           currentPlayer: currentPlayer,
           deadPoolBlack: [...deadPoolBlack],
           deadPoolRed: [...deadPoolRed]
@@ -1099,6 +1115,8 @@
           board[toRow-ROW_MIN][toCol-COL_MIN] = {name:'舞', color:color};
           const idx = stackedDancers.indexOf(dancer);
           if(idx > -1) stackedDancers.splice(idx, 1);
+        updatePhasing();
+
           countPieces(); return true;
         }
         if (move.type === 'tianjiang') {
@@ -1218,6 +1236,8 @@
                   }
                   giants.splice(giants.indexOf(attackedGiantForTJ), 1);
                 }
+                                phasingPieces.push({name: '天将' + t.type, color: color, row: c.row, col: c.col, turnsLeft: 3});
+                log(`👻 天将${t.type} 进入虚影状态，3回合内可自由移动，超时被吃！`, 'info');
                 hasEaten = true;
               }
 
@@ -1469,7 +1489,7 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
             }
 
           // 2. 检查是否攻击了巨将
-          } else {
+                    } else {
             const attackedGiant = giants.find(g =>
               g.color !== color &&
               g.topLeftRow <= move.toRow && move.toRow <= g.topLeftRow + 1 &&
@@ -1488,22 +1508,12 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
                 }
                 giants.splice(giants.indexOf(attackedGiant), 1);
               }
-              // 弹飞攻击棋子至3格外
-              const safeDir = [[-1,0],[1,0],[0,-1],[0,1]].find(([dr,dc]) => {
-                const rr = move.toRow + dr * 3, cc = move.toCol + dc * 3;
-                return rr >= ROW_MIN && rr <= ROW_MAX && cc >= COL_MIN && cc <= COL_MAX && !board[rr-ROW_MIN]?.[cc-COL_MIN];
-              });
-              if (safeDir) {
-                const pr = move.toRow + safeDir[0]*3, pc = move.toCol + safeDir[1]*3;
-                board[pr-ROW_MIN][pc-COL_MIN] = piece;
-                board[move.fromRow-ROW_MIN][move.fromCol-COL_MIN] = null;
-                log(`💨 ${piece.name} 被弹飞！`, 'info');
-              } else {
-                board[move.fromRow-ROW_MIN][move.fromCol-COL_MIN] = piece;
-              }
-              board[move.toRow-ROW_MIN][move.toCol-COL_MIN] = null;
-
+              board[move.toRow - ROW_MIN][move.toCol - COL_MIN] = piece;
+              board[move.fromRow - ROW_MIN][move.fromCol - COL_MIN] = null;
+              phasingPieces.push({name: piece.name, color: piece.color, row: move.toRow, col: move.toCol, turnsLeft: 3});
+              log(`👻 ${piece.name} 进入虚影状态，3回合内可自由移动，超时被吃！`, 'info');
             // 3. 普通吃子
+            } else {// 3. 普通吃子
             } else {
               if (target && target.color !== color) {
                 if (REVIVABLE_TYPES.includes(target.name)) {
@@ -1519,7 +1529,21 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
 
         }countPieces();
         if (checkGameEnd()) return true;
-        return true;
+                if (move.type === 'piece') {
+          const ppIdx = phasingPieces.findIndex(pp => pp.row === move.fromRow && pp.col === move.fromCol);
+          if (ppIdx > -1) {
+            phasingPieces.splice(ppIdx, 1);
+            log(`👻 ${piece.name} 脱离虚影状态，安全撤退！`, 'info');
+          }
+        }
+        if (move.type === 'tianjiang') {
+          const ppIdx = phasingPieces.findIndex(pp => pp.color === color && pp.name.startsWith('天将'));
+          if (ppIdx > -1) {
+            phasingPieces.splice(ppIdx, 1);
+            log(`👻 天将脱离虚影状态，安全撤退！`, 'info');
+          }
+        }
+return true;
       } catch(e) { log(`❌ 走法异常: ${e.message}`, 'error'); return false; }
     }
     function autoStep() {
@@ -1539,12 +1563,15 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
       tianJiangs = snapshot.tianJiangs;
       giants = snapshot.giants;
       stackedDancers = snapshot.stackedDancers;
+      phasingPieces = snapshot.phasingPieces;
       currentPlayer = snapshot.currentPlayer;
       deadPoolBlack = snapshot.deadPoolBlack;
       deadPoolRed = snapshot.deadPoolRed;
       selectedPiece = null;
       validMoves = [];
       dangerMoves = [];
+        updatePhasing();
+
       countPieces();
       drawBoard();
       log('↩️ 悔棋成功', 'info');
@@ -1676,7 +1703,26 @@ board[c.row - ROW_MIN][c.col - COL_MIN] = { name: '天将' + t.type, color: colo
         ctx.strokeRect(barX, barY, barW, barH);
       });
 
-      for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
+      
+      phasingPieces.forEach(pp => {
+        const alpha = 0.4 + 0.2 * Math.sin(Date.now() / 200);
+        ctx.globalAlpha = alpha;
+        const bx = getX(pp.col), by = getY(pp.row);
+        const cx2 = bx + LINE_SPAN / 2, cy2 = by + LINE_SPAN / 2;
+        ctx.fillStyle = pp.color === RED ? '#b91c1c' : '#3a2a1a';
+        ctx.font = `bold ${LINE_SPAN*0.3}px KaiTi`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(pp.name, cx2, cy2);
+        ctx.strokeStyle = '#ffd700';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bx+2, by+2, LINE_SPAN-4, LINE_SPAN-4);
+        ctx.font = `bold ${LINE_SPAN*0.2}px KaiTi`;
+        ctx.fillStyle = '#ffd700';
+        ctx.fillText('⏳'+pp.turnsLeft, bx+LINE_SPAN*0.85, by+LINE_SPAN*0.25);
+      });
+      ctx.globalAlpha = 1;
+for(let r=0; r<ROWS; r++) for(let c=0; c<COLS; c++) {
         const piece=board[r][c]; if(!piece || piece.name==='巨将') continue;
         
         // 检查这个格子是不是被某个天将占据（如果是，椭圆绘制已经画过了，这里跳过）
